@@ -53,12 +53,6 @@ echo "New versions will be:"
 echo "App version: $NEW_VERSION"
 echo "Chart version: $NEW_CHART_VERSION"
 
-read -p "Continue? (y/n): " confirm
-if [ "$confirm" != "y" ]; then
-    echo "Aborted"
-    exit 1
-fi
-
 # Update versions in Chart.yaml
 sed -i '' "s/version: $CHART_VERSION/version: $NEW_CHART_VERSION/" chart/Chart.yaml
 sed -i '' "s/appVersion: \"$APP_VERSION\"/appVersion: \"$NEW_VERSION\"/" chart/Chart.yaml
