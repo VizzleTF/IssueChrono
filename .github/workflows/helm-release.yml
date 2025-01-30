@@ -8,75 +8,42 @@ on:
 permissions:
   contents: write
   pages: write
-  id-token: write
-  deployments: write
-  packages: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    concurrency: 
-      group: github-pages
-      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Install Helm
-        uses: azure/setup-helm@v3
-
-      - name: Add Helm repos
-        run: |
-          helm repo add stable https://charts.helm.sh/stable
-          helm repo update
-
-      - name: Package Helm chart
-        run: |
-          mkdir -p .cr-release-packages
-          helm package chart/ --destination .cr-release-packages
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Prepare artifact
-        run: |
-          mkdir -p _site
-          cp -r .cr-release-packages/* _site/
-          helm repo index _site --url https://vizzletf.github.io/IssueChrono/
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '_site'
-          name: github-pages
-          retention-days: 1
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          artifact_name: github-pages
-
-      - name: Update gh-pages branch
+      - name: Package and Push Chart
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git checkout gh-pages || git checkout --orphan gh-pages
-          git rm -rf . || true
-          git clean -fxd
-          cp -r _site/* .
-          git add .
-          git commit -m "Release Helm chart ${{ github.ref_name }}"
+          # Package chart
+          helm package chart/
+
+          # Switch to gh-pages branch
+          git fetch origin gh-pages || git branch gh-pages
+          git checkout gh-pages || git checkout -b gh-pages
+          git pull origin gh-pages || true
+
+          # Update repository
+          mkdir -p docs
+          mv gantt-*.tgz docs/
+          helm repo index docs --url https://vizzletf.github.io/IssueChrono/
+          
+          # Commit and push
+          git add docs
+          git commit -m "Release chart ${{ github.ref_name }}"
           git push origin gh-pages 
