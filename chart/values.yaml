@@ -28,7 +28,7 @@ frontend:
     pullPolicy: Always
   service:
     type: ClusterIP
-    port: 5173
+    port: 80
   resources:
     limits:
       cpu: 500m
@@ -38,25 +38,24 @@ frontend:
       memory: 128Mi
   env:
     - name: VITE_API_URL
-      value: http://backend:3001
+      value: /api
 
 ingress:
   enabled: true
   className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    # Add cert-manager annotations if needed
-    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
   hosts:
     - host: gantt.local
       paths:
-        - path: /
+        - path: /(.*)
           pathType: Prefix
           service: frontend
-        - path: /api
+        - path: /api(/|$)(.*)
           pathType: Prefix
           service: backend
   tls:
     enabled: false
-    secretName: ""  # Name of the TLS secret
-    hosts: []       # List of hosts to be included in the TLS certificate 
+    secretName: ""
+    hosts: [] 
