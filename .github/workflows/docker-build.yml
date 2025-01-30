@@ -7,7 +7,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  OWNER: ${{ github.repository_owner }}
+  BACKEND_IMAGE_NAME: ${{ github.repository }}/backend
+  FRONTEND_IMAGE_NAME: ${{ github.repository }}/frontend
 
 jobs:
   build-and-push:
@@ -19,11 +20,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set image names
-        run: |
-          echo "BACKEND_IMAGE_NAME=$(echo ${{ env.OWNER }} | tr '[:upper:]' '[:lower:]')/issuechrono-backend" >> $GITHUB_ENV
-          echo "FRONTEND_IMAGE_NAME=$(echo ${{ env.OWNER }} | tr '[:upper:]' '[:lower:]')/issuechrono-frontend" >> $GITHUB_ENV
 
       - name: Extract version from tag
         id: version

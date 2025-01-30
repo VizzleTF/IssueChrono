@@ -2,7 +2,7 @@ backend:
   name: backend
   replicaCount: 1
   image:
-    repository: ghcr.io/vizzletf/issuechrono-backend
+    repository: ghcr.io/vizzletf/issuechrono/backend
     tag: 1.0.6
     pullPolicy: Always
   service:
@@ -23,7 +23,7 @@ frontend:
   name: frontend
   replicaCount: 1
   image:
-    repository: ghcr.io/vizzletf/issuechrono-frontend
+    repository: ghcr.io/vizzletf/issuechrono/frontend
     tag: 1.0.6
     pullPolicy: Always
   service:

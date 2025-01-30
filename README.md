@@ -1,102 +1,99 @@
-# GitLab Gantt Visualizer
+# IssueChrono - GitLab Task Visualization
 
-A web application that visualizes GitLab project issues in a Gantt chart format.
+IssueChrono is a web application that provides Gantt chart visualization for GitLab issues and tasks.
 
 ## Features
 
-- Connect to GitLab projects using API token
-- Display project issues in a Gantt chart
-- Filter issues by labels and milestones
-- Interactive timeline with drag-and-drop support
-- Export chart as PNG
+- Interactive Gantt chart view of GitLab issues
+- Task filtering by assignees and labels
+- Real-time updates of task status
+- Drag-and-drop task scheduling
+- Automatic task dependency visualization
 
-## Setup
+## Installation
 
-### Prerequisites
+### Using Helm
 
-- Node.js (v14 or higher)
-- npm or yarn
+1. Add the Helm repository:
+```bash
+helm repo add issuechrono https://vizzletf.github.io/IssueChrono
+helm repo update
+```
 
-### Backend Setup
+2. Install the chart:
+```bash
+helm install gantt issuechrono/gantt
+```
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+#### Configuration
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+You can customize the installation by creating a `values.yaml` file:
 
-3. Create a `.env` file with the following content:
-   ```
-   PORT=3000
-   CORS_ORIGIN=http://localhost:5173
-   ```
+```yaml
+backend:
+  env:
+    - name: NODE_ENV
+      value: production
+    # Add your GitLab configuration here
 
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
+frontend:
+  env:
+    - name: VITE_API_URL
+      value: http://backend:3001
 
-### Frontend Setup
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: your-domain.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: backend
+```
 
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
+Then install with:
+```bash
+helm install gantt issuechrono/gantt -f values.yaml
+```
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+### Available Values
 
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-4. Open your browser and visit `http://localhost:5173`
-
-## Usage
-
-1. Get your GitLab API token:
-   - Go to GitLab > Settings > Access Tokens
-   - Create a new token with `api` scope
-   - Copy the token
-
-2. Find your project ID:
-   - Go to your GitLab project
-   - The project ID is displayed on the project's home page
-
-3. Enter these details in the application:
-   - Paste your project ID
-   - Paste your GitLab API token
-   - Click "Connect"
-
-4. The Gantt chart will display your project's issues
-   - Issues are shown with their start and end dates
-   - You can filter issues by labels
-   - Drag and drop to adjust dates
-   - Export the chart as needed
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `backend.replicaCount` | Number of backend replicas | `1` |
+| `backend.image.tag` | Backend image tag | `1.0.6` |
+| `frontend.replicaCount` | Number of frontend replicas | `1` |
+| `frontend.image.tag` | Frontend image tag | `1.0.6` |
+| `ingress.enabled` | Enable ingress | `true` |
+| `ingress.className` | Ingress class name | `nginx` |
 
 ## Development
 
-The project is structured as follows:
+1. Clone the repository:
+```bash
+git clone https://github.com/VizzleTF/IssueChrono.git
+cd IssueChrono
+```
 
-- `backend/`: Express.js + TypeScript backend
-  - `src/`: Source code
-    - `index.ts`: Main entry point
-    - `routes/`: API routes
-    - `types/`: TypeScript type definitions
+2. Install dependencies:
+```bash
+cd frontend && npm install
+cd ../backend && npm install
+```
 
-- `frontend/`: React + TypeScript frontend
-  - `src/`: Source code
-    - `App.tsx`: Main application component
-    - `components/`: React components
-    - `types/`: TypeScript type definitions
+3. Start development servers:
+```bash
+# Frontend
+cd frontend && npm run dev
+
+# Backend
+cd backend && npm run dev
+```
 
 ## License
 
-ISC
+MIT License

@@ -10,6 +10,7 @@ permissions:
   pages: write
   id-token: write
   deployments: write
+  packages: read
 
 jobs:
   release:
@@ -45,24 +46,34 @@ jobs:
           mkdir -p .cr-release-packages
           helm package chart/ --destination .cr-release-packages
 
+      - name: Create docs directory
+        run: |
+          mkdir -p docs
+          cp .cr-release-packages/* docs/
+          helm repo index docs --url https://vizzletf.github.io/IssueChrono/
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.cr-release-packages'
+          path: 'docs'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update Helm repository index
+      - name: Update gh-pages branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git checkout gh-pages || git checkout --orphan gh-pages
-          mkdir -p docs
-          cp .cr-release-packages/* docs/
-          helm repo index docs --url https://vizzletf.github.io/IssueChrono/
-          git add docs/
+          git rm -rf . || true
+          git clean -fxd
+          cp -r docs/* .
+          git add .
           git commit -m "Release Helm chart ${{ github.ref_name }}"
           git push origin gh-pages 
