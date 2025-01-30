@@ -1,0 +1,44 @@
+name: Release Helm Chart
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+
+      - name: Add Helm repos
+        run: |
+          helm repo add stable https://charts.helm.sh/stable
+          helm repo update
+
+      - name: Package Helm chart
+        run: |
+          helm package chart/
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v3
+
+      - name: Create Helm repository
+        run: |
+          git checkout gh-pages || git checkout --orphan gh-pages
+          cp gantt-*.tgz docs/
+          helm repo index docs --url https://vizzletf.github.io/IssueChrono/
+          git add docs/
+          git commit -m "Release Helm chart ${{ github.ref_name }}"
+          git push origin gh-pages 
