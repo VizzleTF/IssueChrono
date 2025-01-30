@@ -5,19 +5,28 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Git
         run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Install Helm
         uses: azure/setup-helm@v3
@@ -29,15 +38,26 @@ jobs:
 
       - name: Package Helm chart
         run: |
-          helm package chart/
+          mkdir -p .cr-release-packages
+          helm package chart/ --destination .cr-release-packages
 
-      - name: Setup GitHub Pages
+      - name: Setup Pages
         uses: actions/configure-pages@v3
 
-      - name: Create Helm repository
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: '.cr-release-packages'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+
+      - name: Update Helm repository index
         run: |
           git checkout gh-pages || git checkout --orphan gh-pages
-          cp gantt-*.tgz docs/
+          mkdir -p docs
+          cp .cr-release-packages/* docs/
           helm repo index docs --url https://vizzletf.github.io/IssueChrono/
           git add docs/
           git commit -m "Release Helm chart ${{ github.ref_name }}"
