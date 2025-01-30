@@ -111,7 +111,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             }
 
             const response = await axios.get(
-                `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}/notes`,
+                `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}/notes`,
                 {
                     params: {
                         gitlabUrl: `https://${gitlabUrl}`,
@@ -141,7 +141,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             }
 
             const response = await axios.post(
-                `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}/notes`,
+                `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}/notes`,
                 { body: newComment },
                 {
                     params: {
@@ -171,7 +171,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             }
 
             const response = await axios.put(
-                `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}/notes/${noteId}`,
+                `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}/notes/${noteId}`,
                 { body: editingComment.body },
                 {
                     params: {
@@ -199,7 +199,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             }
 
             await axios.delete(
-                `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}/notes/${noteId}`,
+                `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}/notes/${noteId}`,
                 {
                     params: {
                         gitlabUrl: `https://${gitlabUrl}`,
@@ -267,7 +267,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             }
 
             await axios.put(
-                `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}`,
+                `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
                 { [field]: value },
                 {
                     params: {

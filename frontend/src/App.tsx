@@ -196,7 +196,7 @@ const App = () => {
         throw new Error('Please enter at least one project ID');
       }
 
-      const response = await axios.get(`http://localhost:3001/api/gitlab/issues`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/gitlab/issues`, {
         params: {
           gitlabUrl: `https://${gitlabUrl}`,
           projectId: cleanProjectIds.join(','),
