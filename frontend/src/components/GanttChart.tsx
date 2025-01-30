@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
 import {
     Box,
     Slider,
@@ -32,6 +32,7 @@ import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import CommentIcon from '@mui/icons-material/Comment';
 import axios from 'axios';
 import TaskModal from './TaskModal';
+import useImageCache from '../hooks/useImageCache';
 
 interface Task {
     id: number;
@@ -63,7 +64,7 @@ interface Task {
     weight?: number;
     time_estimate?: number;
     total_time_spent?: number;
-    due_date?: string;
+    due_date?: string | null;
     milestone?: {
         id: number;
         title: string;
@@ -91,8 +92,26 @@ interface GanttChartProps {
     tasks: Task[];
 }
 
-const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
+// Memoized Avatar component with image caching
+const UserAvatar = memo(({ src, name, size = 24 }: { src: string; name: string; size?: number }) => {
+    const cachedImage = useImageCache(src);
+    return (
+        <Avatar
+            src={cachedImage?.src || src}
+            alt={name}
+            sx={{
+                width: size,
+                height: size,
+                fontSize: size * 0.5,
+                border: '2px solid white'
+            }}
+        />
+    );
+});
+
+const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
     const theme = useTheme();
+    const [tasks, setTasks] = useState<Task[]>(initialTasks);
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [scrollPosition, setScrollPosition] = useState(0);
@@ -333,28 +352,35 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
         };
     };
 
-    // Add function to handle label changes
+    // Function to update task in the local state
+    const updateTask = (taskId: number, updates: Partial<Task>) => {
+        setTasks(prevTasks =>
+            prevTasks.map(task =>
+                task.id === taskId
+                    ? { ...task, ...updates }
+                    : task
+            )
+        );
+    };
+
+    // Update handlers with local state updates
     const handleLabelChange = async (taskId: number, newLabels: string[]) => {
         try {
-            // Get all available labels with their details
             const allLabels = tasks.flatMap(t => t.labels)
                 .filter((label, index, self) =>
                     index === self.findIndex(l => l.name === label.name)
                 );
 
-            // Map selected label names to full label objects
             const selectedLabels = newLabels
                 .map(name => allLabels.find(l => l.name === name))
                 .filter((label): label is Task['labels'][0] => label !== undefined);
 
-            // Get the task's project ID and iid
             const task = tasks.find(t => t.id === taskId);
             if (!task?.projectId) {
                 console.error('Task project ID not found');
                 return;
             }
 
-            // Get GitLab URL and token from localStorage
             const gitlabUrl = localStorage.getItem('gitlabUrl');
             const token = localStorage.getItem('token');
 
@@ -363,17 +389,9 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                 return;
             }
 
-            console.log('Updating task:', {
-                taskId,
-                projectId: task.projectId,
-                iid: task.iid,
-                labels: newLabels
-            });
-
-            // Send update to GitLab API
             await axios.put(
                 `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}`,
-                { labels: newLabels.join(',') }, // Join labels with commas as per GitLab API
+                { labels: newLabels.join(',') },
                 {
                     params: {
                         gitlabUrl: `https://${gitlabUrl}`,
@@ -382,45 +400,22 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                 }
             );
 
-            // Update the selected task if it's open
-            if (selectedTask?.id === taskId) {
-                setSelectedTask({
-                    ...selectedTask,
-                    labels: selectedLabels
-                });
-            }
-
-            // Update tasks array
-            const updatedTasks = tasks.map(t => {
-                if (t.id === taskId) {
-                    return {
-                        ...t,
-                        labels: selectedLabels
-                    };
-                }
-                return t;
-            });
-
-            // Redraw the chart
-            drawChart(scrollPosition, verticalScroll);
+            // Update local state
+            updateTask(taskId, { labels: selectedLabels });
 
         } catch (error) {
             console.error('Error updating labels:', error);
-            // TODO: Add error notification
         }
     };
 
-    // Add function to handle assignee changes
     const handleAssigneeChange = async (taskId: number, newAssigneeId: number | null) => {
         try {
-            // Get the task's project ID and iid
             const task = tasks.find(t => t.id === taskId);
             if (!task?.projectId) {
                 console.error('Task project ID not found');
                 return;
             }
 
-            // Get GitLab URL and token from localStorage
             const gitlabUrl = localStorage.getItem('gitlabUrl');
             const token = localStorage.getItem('token');
 
@@ -429,17 +424,9 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                 return;
             }
 
-            console.log('Updating task assignee:', {
-                taskId,
-                projectId: task.projectId,
-                iid: task.iid,
-                assignee_id: newAssigneeId
-            });
-
-            // Send update to GitLab API
             await axios.put(
                 `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}`,
-                { assignee_id: newAssigneeId }, // Use assignee_id instead of assignee_ids
+                { assignee_id: newAssigneeId },
                 {
                     params: {
                         gitlabUrl: `https://${gitlabUrl}`,
@@ -448,47 +435,25 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                 }
             );
 
-            // Update the selected task if it's open
-            if (selectedTask?.id === taskId) {
-                const updatedAssignee = newAssigneeId ? uniqueAssignees.find(user => user.id === newAssigneeId) : null;
-                setSelectedTask({
-                    ...selectedTask,
-                    assignees: updatedAssignee ? [updatedAssignee] : []
-                });
-            }
-
-            // Update tasks array
-            const updatedTasks = tasks.map(t => {
-                if (t.id === taskId) {
-                    const updatedAssignee = newAssigneeId ? uniqueAssignees.find(user => user.id === newAssigneeId) : null;
-                    return {
-                        ...t,
-                        assignees: updatedAssignee ? [updatedAssignee] : []
-                    };
-                }
-                return t;
+            // Update local state
+            const updatedAssignee = newAssigneeId ? uniqueAssignees.find(user => user.id === newAssigneeId) : null;
+            updateTask(taskId, {
+                assignees: updatedAssignee ? [updatedAssignee] : []
             });
-
-            // Redraw the chart
-            drawChart(scrollPosition, verticalScroll);
 
         } catch (error) {
             console.error('Error updating assignee:', error);
-            // TODO: Add error notification
         }
     };
 
-    // Add function to handle title changes
     const handleTitleChange = async (taskId: number, newTitle: string) => {
         try {
-            // Get the task's project ID and iid
             const task = tasks.find(t => t.id === taskId);
             if (!task?.projectId) {
                 console.error('Task project ID not found');
                 return;
             }
 
-            // Get GitLab URL and token from localStorage
             const gitlabUrl = localStorage.getItem('gitlabUrl');
             const token = localStorage.getItem('token');
 
@@ -497,14 +462,6 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                 return;
             }
 
-            console.log('Updating task title:', {
-                taskId,
-                projectId: task.projectId,
-                iid: task.iid,
-                title: newTitle
-            });
-
-            // Send update to GitLab API
             await axios.put(
                 `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}`,
                 { title: newTitle },
@@ -516,45 +473,22 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                 }
             );
 
-            // Update the selected task if it's open
-            if (selectedTask?.id === taskId) {
-                setSelectedTask({
-                    ...selectedTask,
-                    name: newTitle
-                });
-            }
-
-            // Update tasks array
-            const updatedTasks = tasks.map(t => {
-                if (t.id === taskId) {
-                    return {
-                        ...t,
-                        name: newTitle
-                    };
-                }
-                return t;
-            });
-
-            // Redraw the chart
-            drawChart(scrollPosition, verticalScroll);
+            // Update local state
+            updateTask(taskId, { name: newTitle });
 
         } catch (error) {
             console.error('Error updating title:', error);
-            // TODO: Add error notification
         }
     };
 
-    // Add function to handle description changes
     const handleDescriptionChange = async (taskId: number, newDescription: string) => {
         try {
-            // Get the task's project ID and iid
             const task = tasks.find(t => t.id === taskId);
             if (!task?.projectId) {
                 console.error('Task project ID not found');
                 return;
             }
 
-            // Get GitLab URL and token from localStorage
             const gitlabUrl = localStorage.getItem('gitlabUrl');
             const token = localStorage.getItem('token');
 
@@ -563,14 +497,6 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                 return;
             }
 
-            console.log('Updating task description:', {
-                taskId,
-                projectId: task.projectId,
-                iid: task.iid,
-                description: newDescription
-            });
-
-            // Send update to GitLab API
             await axios.put(
                 `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}`,
                 { description: newDescription },
@@ -582,32 +508,16 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                 }
             );
 
-            // Update the selected task if it's open
-            if (selectedTask?.id === taskId) {
-                setSelectedTask({
-                    ...selectedTask,
-                    description: newDescription
-                });
-            }
-
-            // Update tasks array
-            const updatedTasks = tasks.map(t => {
-                if (t.id === taskId) {
-                    return {
-                        ...t,
-                        description: newDescription
-                    };
-                }
-                return t;
-            });
-
-            // Redraw the chart
-            drawChart(scrollPosition, verticalScroll);
+            // Update local state
+            updateTask(taskId, { description: newDescription });
 
         } catch (error) {
             console.error('Error updating description:', error);
-            // TODO: Add error notification
         }
+    };
+
+    const handleDateChange = async (taskId: number, field: 'start_date' | 'due_date', value: string | null) => {
+        // No-op for now, as we don't need to handle date changes in the Gantt chart
     };
 
     // Draw task bar with colors
@@ -684,6 +594,41 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
         ctx.textBaseline = 'middle';
         ctx.fillText(label.name, x + 8, y + height / 2);
     };
+
+    const avatarCache = useMemo(() => new Map<string, HTMLImageElement>(), []);
+
+    const drawAvatar = useCallback((
+        ctx: CanvasRenderingContext2D,
+        url: string,
+        x: number,
+        y: number,
+        size: number
+    ) => {
+        if (!url) return;
+
+        if (avatarCache.has(url)) {
+            const img = avatarCache.get(url)!;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(img, x, y, size, size);
+            ctx.restore();
+            return;
+        }
+
+        const img = new Image();
+        img.src = url;
+        img.onload = () => {
+            avatarCache.set(url, img);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(img, x, y, size, size);
+            ctx.restore();
+        };
+    }, [avatarCache]);
 
     const drawChart = (scrollX: number = 0, scrollY: number = 0) => {
         if (!containerRef.current || !canvasRef.current) return;
@@ -836,17 +781,8 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                     ctx.fillStyle = theme.palette.grey[300];
                     ctx.fill();
 
-                    // Load and draw avatar image
-                    const img = new Image();
-                    img.src = assignee.avatar_url;
-                    img.onload = () => {
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-                        ctx.clip();
-                        ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
-                        ctx.restore();
-                    };
+                    // Draw cached avatar
+                    drawAvatar(ctx, assignee.avatar_url, avatarX, avatarY, avatarSize);
                 });
 
                 // Draw +N if there are more assignees
@@ -1005,6 +941,68 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
     const [labelSearchText, setLabelSearchText] = useState('');
     const [labelAnchorEl, setLabelAnchorEl] = useState<HTMLButtonElement | null>(null);
     const labelButtonRef = useRef<HTMLButtonElement | null>(null);
+
+    const renderAssigneeAvatars = (assignees: any[]) => {
+        if (!assignees?.length) return null;
+
+        return (
+            <div style={{ display: 'flex', marginLeft: 8 }}>
+                {assignees.slice(0, 3).map((assignee, index) => (
+                    <div
+                        key={assignee.id}
+                        style={{
+                            marginLeft: index > 0 ? -8 : 0,
+                            zIndex: assignees.length - index
+                        }}
+                    >
+                        <UserAvatar
+                            src={assignee.avatar_url}
+                            name={assignee.name}
+                        />
+                    </div>
+                ))}
+                {assignees.length > 3 && (
+                    <div style={{ marginLeft: -8, zIndex: 0 }}>
+                        <Avatar
+                            sx={{
+                                width: 24,
+                                height: 24,
+                                fontSize: 12,
+                                bgcolor: 'primary.main',
+                                border: '2px solid white'
+                            }}
+                        >
+                            +{assignees.length - 3}
+                        </Avatar>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderTaskRow = (task: Task) => (
+        <Box
+            sx={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 16px',
+                borderBottom: '1px solid rgba(0, 0, 0, 0.12)',
+                backgroundColor: task.id === selectedTask?.id ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                cursor: 'pointer',
+                '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                }
+            }}
+            onClick={() => setSelectedTask(task)}
+        >
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" noWrap sx={{ mr: 1 }}>
+                    {task.name}
+                </Typography>
+                {task.assignees && renderAssigneeAvatars(task.assignees)}
+            </Box>
+        </Box>
+    );
 
     return (
         <Box sx={{
@@ -1215,11 +1213,18 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks }) => {
                 {selectedTask && (
                     <TaskModal
                         task={selectedTask}
-                        onClose={() => setSelectedTask(null)}
+                        onClose={() => {
+                            // Get the updated task from local state
+                            const updatedTask = tasks.find(t => t.id === selectedTask.id);
+                            if (updatedTask) {
+                                setSelectedTask(null);
+                            }
+                        }}
                         onLabelChange={handleLabelChange}
                         onAssigneeChange={handleAssigneeChange}
                         onTitleChange={handleTitleChange}
                         onDescriptionChange={handleDescriptionChange}
+                        onDateChange={handleDateChange}
                         uniqueLabels={uniqueLabels}
                         allUsers={uniqueAssignees}
                     />

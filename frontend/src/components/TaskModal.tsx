@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import {
     Box,
     Paper,
@@ -60,6 +60,15 @@ interface Note {
     };
     created_at: string;
 }
+
+// Memoized Avatar component
+const UserAvatar = memo(({ src, name, size = 32 }: { src: string; name: string; size?: number }) => (
+    <Avatar
+        src={src}
+        alt={name}
+        sx={{ width: size, height: size }}
+    />
+));
 
 const TaskModal: React.FC<TaskModalProps> = ({
     task,
@@ -375,9 +384,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
                             </Box>
                             {task.author && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    <Avatar
+                                    <UserAvatar
                                         src={task.author.avatar_url}
-                                        sx={{ width: 20, height: 20 }}
+                                        name={task.author.name}
+                                        size={20}
                                     />
                                     {task.author.name}
                                 </Box>
@@ -513,7 +523,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                                         <Paper key={note.id} variant="outlined" sx={{ p: 2 }}>
                                             <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
                                                 {note.author && (
-                                                    <Avatar src={note.author.avatar_url} sx={{ width: 32, height: 32 }} />
+                                                    <UserAvatar src={note.author.avatar_url} name={note.author.name} />
                                                 )}
                                                 <Box sx={{ flex: 1 }}>
                                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -681,7 +691,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
                             <Stack spacing={1}>
                                 {task.assignees?.[0] && (
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Avatar src={task.assignees[0].avatar_url} alt={task.assignees[0].name} sx={{ width: 24, height: 24 }} />
+                                        <UserAvatar
+                                            src={task.assignees[0].avatar_url}
+                                            name={task.assignees[0].name}
+                                            size={24}
+                                        />
                                         <Typography variant="body2">{task.assignees[0].name}</Typography>
                                         <IconButton
                                             size="small"
@@ -734,7 +748,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
                                                         borderRadius: 1
                                                     }}
                                                 >
-                                                    <Avatar src={user.avatar_url} sx={{ width: 24, height: 24 }} />
+                                                    <UserAvatar
+                                                        src={user.avatar_url}
+                                                        name={user.name}
+                                                        size={24}
+                                                    />
                                                     <Typography variant="body2">{user.name}</Typography>
                                                 </Box>
                                             ))}
