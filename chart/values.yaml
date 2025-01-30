@@ -18,6 +18,8 @@ backend:
   env:
     - name: NODE_ENV
       value: production
+    - name: CORS_ORIGIN
+      value: "*"
 
 frontend:
   name: frontend
@@ -46,6 +48,10 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
   hosts:
     - host: gantt.local
       paths:
