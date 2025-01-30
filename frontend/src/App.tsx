@@ -196,7 +196,7 @@ const App = () => {
         throw new Error('Please enter at least one project ID');
       }
 
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/gitlab/issues`, {
+      const response = await axios.get(`${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues`, {
         params: {
           gitlabUrl: `https://${gitlabUrl}`,
           projectId: cleanProjectIds.join(','),
@@ -276,7 +276,7 @@ const App = () => {
       }
 
       await axios.put(
-        `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
+        `${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
         { [field]: value },
         {
           params: {

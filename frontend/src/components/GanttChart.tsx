@@ -390,7 +390,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             }
 
             await axios.put(
-                `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
+                `${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
                 { labels: newLabels.join(',') },
                 {
                     params: {
@@ -425,7 +425,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             }
 
             await axios.put(
-                `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
+                `${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
                 { assignee_id: newAssigneeId },
                 {
                     params: {
@@ -463,7 +463,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             }
 
             await axios.put(
-                `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
+                `${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
                 { title: newTitle },
                 {
                     params: {
@@ -498,7 +498,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             }
 
             await axios.put(
-                `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
+                `${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
                 { description: newDescription },
                 {
                     params: {

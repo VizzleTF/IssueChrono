@@ -8,7 +8,6 @@ RUN npm install
 
 COPY . .
 
-ENV VITE_API_URL=http://backend-service:3001
 ENV NODE_ENV=production
 
 # Skip type checking during build
@@ -24,6 +23,11 @@ COPY --from=builder /app/dist .
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Add script to generate runtime config
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 80
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
