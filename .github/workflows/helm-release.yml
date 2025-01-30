@@ -46,19 +46,19 @@ jobs:
           mkdir -p .cr-release-packages
           helm package chart/ --destination .cr-release-packages
 
-      - name: Create docs directory
-        run: |
-          mkdir -p docs
-          cp .cr-release-packages/* docs/
-          helm repo index docs --url https://vizzletf.github.io/IssueChrono/
-
       - name: Setup Pages
         uses: actions/configure-pages@v4
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p _site
+          cp -r .cr-release-packages/* _site/
+          helm repo index _site --url https://vizzletf.github.io/IssueChrono/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'docs'
+          path: '_site'
 
       - name: Deploy to GitHub Pages
         id: deployment
@@ -73,7 +73,7 @@ jobs:
           git checkout gh-pages || git checkout --orphan gh-pages
           git rm -rf . || true
           git clean -fxd
-          cp -r docs/* .
+          cp -r _site/* .
           git add .
           git commit -m "Release Helm chart ${{ github.ref_name }}"
           git push origin gh-pages 
