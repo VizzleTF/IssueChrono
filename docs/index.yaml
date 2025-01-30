@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  gantt:
+  - apiVersion: v2
+    appVersion: 1.0.3
+    created: "2025-01-30T19:33:34.524798144Z"
+    description: A Helm chart for Gantt application
+    digest: 65d0b68cd02e75548998e0beabacc26b11796b0ef5724737866ec405d14da1aa
+    name: gantt
+    type: application
+    urls:
+    - https://vizzletf.github.io/IssueChrono/gantt-0.1.3.tgz
+    version: 0.1.3
+generated: "2025-01-30T19:33:34.524369537Z"
