@@ -11,21 +11,19 @@ COPY . .
 ENV VITE_API_URL=http://backend:3001
 ENV NODE_ENV=production
 
+# Skip type checking during build
 RUN npm run build
 
-FROM node:20-alpine
+FROM nginx:alpine
 
-WORKDIR /app
+WORKDIR /usr/share/nginx/html
 
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/vite.config.ts ./
+# Copy built files
+COPY --from=builder /app/dist .
 
-RUN npm ci --omit=dev
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-ENV NODE_ENV=production
-ENV PORT=5173
+EXPOSE 80
 
-EXPOSE 5173
-
-CMD ["npm", "run", "preview"]
+CMD ["nginx", "-g", "daemon off;"]
