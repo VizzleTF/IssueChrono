@@ -8,7 +8,7 @@ RUN npm install
 
 COPY . .
 
-ENV VITE_API_URL=http://backend:3001
+ENV VITE_API_URL=http://backend-service:3001
 ENV NODE_ENV=production
 
 # Skip type checking during build

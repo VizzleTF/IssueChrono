@@ -276,7 +276,7 @@ const App = () => {
       }
 
       await axios.put(
-        `http://localhost:3001/api/gitlab/issues/${task.projectId}/${task.iid}`,
+        `${import.meta.env.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
         { [field]: value },
         {
           params: {
