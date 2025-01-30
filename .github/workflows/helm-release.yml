@@ -38,15 +38,12 @@ jobs:
           git checkout gh-pages || git checkout -b gh-pages
           git pull origin gh-pages || true
 
-          # Clean existing files
-          git rm -rf . || true
-          git clean -fxd
-
-          # Move new files
-          mv ../gantt-*.tgz .
-          helm repo index . --url https://vizzletf.github.io/IssueChrono
+          # Update repository
+          mkdir -p docs
+          mv gantt-*.tgz docs/
+          helm repo index docs --url https://vizzletf.github.io/IssueChrono/
           
           # Commit and push
-          git add .
+          git add docs
           git commit -m "Release chart ${{ github.ref_name }}"
           git push origin gh-pages 
