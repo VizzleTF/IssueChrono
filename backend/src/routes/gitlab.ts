@@ -151,13 +151,43 @@ router.get('/test-connection', async (req: Request, res: Response) => {
 // Fetch issues from GitLab
 router.get('/issues', async (req: Request, res: Response) => {
     try {
-        const { projectId, token, gitlabUrl } = req.query;
+        const { projectId, token, gitlabUrl, period } = req.query;
 
         if (!projectId || !token || !gitlabUrl) {
             return res.status(400).json({ error: 'Project ID, token, and GitLab URL are required' });
         }
 
         const baseUrl = normalizeGitLabUrl(gitlabUrl.toString());
+
+        // Calculate created_after date based on period
+        const now = new Date();
+        let created_after: string | undefined;
+
+        switch (period?.toString()) {
+            case '1month':
+                now.setMonth(now.getMonth() - 1);
+                created_after = now.toISOString();
+                break;
+            case '3months':
+                now.setMonth(now.getMonth() - 3);
+                created_after = now.toISOString();
+                break;
+            case '6months':
+                now.setMonth(now.getMonth() - 6);
+                created_after = now.toISOString();
+                break;
+            case '1year':
+                now.setFullYear(now.getFullYear() - 1);
+                created_after = now.toISOString();
+                break;
+            case 'all':
+                created_after = undefined;
+                break;
+            default:
+                // Default to 1 year if not specified
+                now.setFullYear(now.getFullYear() - 1);
+                created_after = now.toISOString();
+        }
 
         // Split project IDs and fetch issues for each project
         const projectIds = projectId.toString().split(',');
@@ -166,6 +196,7 @@ router.get('/issues', async (req: Request, res: Response) => {
                 const issues = await getProjectIssues(baseUrl, id, token as string, {
                     with_labels_details: true,
                     state: 'all',
+                    created_after,
                     // Exclude unnecessary fields
                     notes: false,
                     discussions: false,
@@ -343,11 +374,6 @@ const getProjectIssues = async (gitlabUrl: string, projectId: string, token: str
     let page = 1;
     const allIssues = [];
 
-    // Calculate date one year ago in ISO format
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    const created_after = oneYearAgo.toISOString();
-
     while (true) {
         const response = await axios.get(
             `${gitlabUrl}/api/v4/projects/${projectId}/issues`,
@@ -355,7 +381,6 @@ const getProjectIssues = async (gitlabUrl: string, projectId: string, token: str
                 headers: { 'PRIVATE-TOKEN': token },
                 params: {
                     ...params,
-                    created_after,
                     per_page: 100,
                     page
                 }

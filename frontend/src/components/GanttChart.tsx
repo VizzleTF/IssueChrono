@@ -54,10 +54,10 @@ interface Task {
     milestone?: {
         id: number;
         title: string;
-        due_date?: string;
-    };
-    iid: number;
+        due_date?: string | null;
+    } | null;
     state: string;
+    iid: number;
 }
 
 interface GanttChartProps {
@@ -1073,6 +1073,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             overflow: 'hidden',
             bgcolor: 'background.paper',
             borderRadius: 3,
+            flex: 1,
         }}>
             {/* Filters */}
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -1321,13 +1322,15 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                     position: 'relative',
                     flexGrow: 1,
                     overflow: 'hidden',
+                    height: 'calc(100vh - 180px)', // Учитываем высоту фильтров и верхней панели
+                    minHeight: 400, // Минимальная высота для маленьких экранов
                 }}
             >
                 <canvas
                     ref={canvasRef}
                     onClick={handleCanvasClick}
                     onMouseMove={handleMouseMove}
-                    style={{ display: 'block' }}
+                    style={{ display: 'block', width: '100%', height: '100%' }}
                 />
                 {selectedTask && (
                     <TaskModal

@@ -11,7 +11,14 @@ import {
   ThemeProvider,
   createTheme,
   alpha,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  LinearProgress,
 } from '@mui/material';
+import { LoadingButton } from '@mui/lab';
 import axios from 'axios';
 import GanttChart from './components/GanttChart';
 import TaskModal from './components/TaskModal';
@@ -95,41 +102,40 @@ interface Task {
   id: number;
   name: string;
   description: string;
-  created_at: string;
-  due_date: string | null;
-  labels: Array<{
-    name: string;
-    color: string;
-    text_color: string;
-  }>;
-  assignees: Array<{
-    id: number;
-    name: string;
-    avatar_url: string;
-  }>;
-  projectId: string;
-  iid: number;
   start: string;
   end: string | null;
   progress: number;
   dependencies: string[];
-  type: string;
-  hideChildren: boolean;
-  displayOrder: number;
+  labels: {
+    name: string;
+    color: string;
+    text_color: string;
+  }[];
+  assignees?: {
+    id: number;
+    name: string;
+    avatar_url: string;
+  }[];
+  projectId?: string;
   web_url: string;
   author: {
     id: number;
     name: string;
     avatar_url: string;
   };
+  created_at: string;
   updated_at: string;
-  weight: number | undefined;
-  milestone: any;
-  time_stats: {
-    time_estimate: number;
-    total_time_spent: number;
-  };
-  notes: any[];
+  weight?: number;
+  time_estimate?: number;
+  total_time_spent?: number;
+  due_date?: string | null;
+  milestone?: {
+    id: number;
+    title: string;
+    due_date?: string | null;
+  } | null;
+  state: string;
+  iid: number;
 }
 
 interface User {
@@ -158,6 +164,9 @@ const App = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [uniqueLabels, setUniqueLabels] = useState<string[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [period, setPeriod] = useState(() =>
+    localStorage.getItem('period') || '1year'
+  );
 
   // Save values to localStorage when they change
   useEffect(() => {
@@ -175,6 +184,10 @@ const App = () => {
   useEffect(() => {
     localStorage.setItem('connected', connected.toString());
   }, [connected]);
+
+  useEffect(() => {
+    localStorage.setItem('period', period);
+  }, [period]);
 
   // Auto-connect if we have all the required data
   useEffect(() => {
@@ -210,14 +223,13 @@ const App = () => {
       const requestParams = {
         gitlabUrl: `https://${gitlabUrl}`,
         projectId: cleanProjectIds.join(','),
-        token
+        token,
+        period
       };
 
       console.log('Making request to:', {
         url: requestUrl,
-        params: requestParams,
-        fullUrl: `${requestUrl}?${new URLSearchParams(requestParams).toString()}`,
-        apiUrl: getApiUrl()
+        params: requestParams
       });
 
       const response = await axios.get(requestUrl, {
@@ -230,9 +242,8 @@ const App = () => {
         data: response.data
       });
 
-      // Ensure response.data is an array
       const tasksData = Array.isArray(response.data) ? response.data : [];
-      setTasks(tasksData);
+      setTasks(tasksData as Task[]);
       setConnected(true);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to connect');
@@ -413,128 +424,104 @@ const App = () => {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{
-        minHeight: '97.5vh',
-        height: '97.5vh',
+        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
         bgcolor: 'background.default',
-        py: { xs: 2, sm: 3 },
-        px: { xs: 2, sm: 3 },
       }}>
-        <Box sx={{ mb: 3 }}>
-          <Box sx={{ textAlign: 'center', mb: { xs: 2, sm: 3 } }}>
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                mb: 1,
-                background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.light} 90%)`,
-                backgroundClip: 'text',
-                textFillColor: 'transparent',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              GitLab Gantt Visualizer
-            </Typography>
-            <Typography
-              variant="body1"
-              color="text.secondary"
-              sx={{ maxWidth: 600, mx: 'auto' }}
-            >
-              Visualize your GitLab project timeline with an interactive Gantt chart
-            </Typography>
-          </Box>
-
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 2, sm: 3 },
-              borderWidth: 1,
-              borderStyle: 'solid',
-              borderColor: 'divider',
-              bgcolor: alpha(theme.palette.background.paper, 0.8),
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            <Box sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr 2fr auto' },
-              gap: 2,
-              alignItems: 'start',
-            }}>
+        {/* Connection form */}
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={2.5}>
               <TextField
+                fullWidth
                 label="GitLab URL"
                 value={gitlabUrl}
                 onChange={(e) => setGitlabUrl(e.target.value)}
-                placeholder="gitlab.example.com"
-                sx={{ mt: 1 }}
+                disabled={loading}
+                size="small"
               />
+            </Grid>
+            <Grid item xs={12} sm={2.5}>
               <TextField
-                label="Project IDs"
+                fullWidth
+                label="Project ID"
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
-                placeholder="Enter project IDs"
-                helperText="Multiple projectIDs"
-                type="text"
+                disabled={loading}
+                size="small"
               />
+            </Grid>
+            <Grid item xs={12} sm={2.5}>
               <TextField
-                label="Access Token"
+                fullWidth
+                label="Token"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
+                disabled={loading}
+                size="small"
                 type="password"
-                sx={{ mt: 1 }}
               />
-              <Button
+            </Grid>
+            <Grid item xs={12} sm={2.5}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Period</InputLabel>
+                <Select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  disabled={loading}
+                  label="Period"
+                >
+                  <MenuItem value="1month">Last Month</MenuItem>
+                  <MenuItem value="3months">Last 3 Months</MenuItem>
+                  <MenuItem value="6months">Last 6 Months</MenuItem>
+                  <MenuItem value="1year">Last Year</MenuItem>
+                  <MenuItem value="all">All Time</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={2}>
+              <LoadingButton
+                fullWidth
                 variant="contained"
                 onClick={handleConnect}
-                disabled={loading || !gitlabUrl || !projectId || !token}
-                sx={{
-                  height: 56,
-                  px: 4,
-                  alignSelf: 'start',
-                  mt: 1
-                }}
+                loading={loading}
               >
-                {loading ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  'Connect'
-                )}
-              </Button>
-            </Box>
-
-            {error && (
-              <Alert
-                severity="error"
-                sx={{
-                  mt: 2,
-                  '& .MuiAlert-icon': {
-                    color: 'error.main'
-                  }
-                }}
-              >
-                {error}
-              </Alert>
-            )}
-          </Paper>
+                Connect
+              </LoadingButton>
+            </Grid>
+          </Grid>
+          {error && (
+            <Typography color="error" sx={{ mt: 1 }}>
+              {error}
+            </Typography>
+          )}
         </Box>
 
-        {connected && tasks.length > 0 && (
-          <Box sx={{
-            flex: 1,
-            minHeight: 0,
-            borderWidth: 1,
-            borderStyle: 'solid',
-            borderColor: 'divider',
-            borderRadius: 3,
-            bgcolor: alpha(theme.palette.background.paper, 0.8),
-            backdropFilter: 'blur(8px)',
-            overflow: 'hidden',
-          }}>
-            <GanttChart tasks={tasks} />
-          </Box>
-        )}
+        {/* Main content */}
+        <Box sx={{
+          flex: 1,
+          overflow: 'hidden',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          {loading && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 1000
+              }}
+            >
+              <LinearProgress />
+            </Box>
+          )}
+          {connected && tasks && <GanttChart tasks={tasks} />}
+        </Box>
 
         {selectedTask && (
           <TaskModal
