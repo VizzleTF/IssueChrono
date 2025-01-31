@@ -13,6 +13,7 @@ import {
     Button,
     Typography,
     SelectChangeEvent,
+    LinearProgress,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import axios from 'axios';
@@ -83,7 +84,10 @@ const UserAvatar = memo(({ src, name, size = 24 }: { src: string; name: string; 
 
 const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
     const theme = useTheme();
-    const [tasks, setTasks] = useState<Task[]>(initialTasks);
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadedCount, setLoadedCount] = useState(0);
+    const [totalCount, setTotalCount] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [scrollPosition, setScrollPosition] = useState(0);
@@ -111,6 +115,34 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             return false;
         }
     });
+
+    // Update tasks loading logic
+    useEffect(() => {
+        setIsLoading(true);
+        setLoadedCount(0);
+
+        // Process tasks in chunks
+        const chunkSize = 1000;
+        const processChunk = (startIndex: number) => {
+            const chunk = initialTasks.slice(startIndex, startIndex + chunkSize);
+            setTasks(prevTasks => [...prevTasks, ...chunk]);
+            setLoadedCount(startIndex + chunk.length);
+
+            if (startIndex + chunkSize < initialTasks.length) {
+                setTimeout(() => processChunk(startIndex + chunkSize), 100);
+            } else {
+                setIsLoading(false);
+            }
+        };
+
+        setTotalCount(initialTasks.length);
+        setTasks([]); // Clear existing tasks
+        if (initialTasks.length > 0) {
+            processChunk(0);
+        } else {
+            setIsLoading(false);
+        }
+    }, [initialTasks]);
 
     // Clear cache and update tasks when initialTasks change
     useEffect(() => {
@@ -1074,6 +1106,33 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             bgcolor: 'background.paper',
             borderRadius: 3,
         }}>
+            {/* Loading Progress */}
+            {isLoading && (
+                <Box sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    zIndex: 10,
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    p: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 1
+                }}>
+                    <LinearProgress
+                        variant="determinate"
+                        value={(loadedCount / totalCount) * 100}
+                        sx={{ width: 200 }}
+                    />
+                    <Typography variant="body2">
+                        Loading tasks: {loadedCount} / {totalCount}
+                    </Typography>
+                </Box>
+            )}
+
             {/* Filters */}
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <FormControl size="small">
