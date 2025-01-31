@@ -12,6 +12,7 @@ import {
     OutlinedInput,
     Button,
     Typography,
+    SelectChangeEvent,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import axios from 'axios';
@@ -107,6 +108,14 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
     const [verticalSliderValue, setVerticalSliderValue] = useState(0);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const avatarCache = useMemo(() => new Map<string, HTMLImageElement>(), []);
+    const [selectedMilestones, setSelectedMilestones] = useState<number[]>(() => {
+        try {
+            const cached = localStorage.getItem('selectedMilestones');
+            return cached ? JSON.parse(cached) : [];
+        } catch {
+            return [];
+        }
+    });
 
     // Clear cache and update tasks when initialTasks change
     useEffect(() => {
@@ -181,6 +190,10 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         localStorage.setItem('selectedAssignees', JSON.stringify(selectedAssignees));
     }, [selectedAssignees]);
 
+    useEffect(() => {
+        localStorage.setItem('selectedMilestones', JSON.stringify(selectedMilestones));
+    }, [selectedMilestones]);
+
     // Status colors - will be assigned dynamically based on selection order
     const STATUS_COLORS = [
         theme.palette.success.main,
@@ -212,6 +225,17 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         [tasks]
     );
 
+    // Get unique milestones for filter
+    const uniqueMilestones = useMemo(() =>
+        Array.from(new Set(tasks
+            .filter(task => task.milestone)
+            .map(task => task.milestone!)
+            .filter((milestone, index, self) =>
+                index === self.findIndex(m => m.id === milestone.id))
+        )).sort((a, b) => a.title.localeCompare(b.title)),
+        [tasks]
+    );
+
     // Filter tasks based on selected labels, excluded labels and assignees
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
@@ -231,9 +255,13 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             const matchesAssignees = selectedAssignees.length === 0 ||
                 task.assignees?.some(assignee => selectedAssignees.includes(assignee.id));
 
-            return matchesLabels && matchesAssignees;
+            // Check if task matches selected milestones
+            const matchesMilestones = selectedMilestones.length === 0 ||
+                (task.milestone && selectedMilestones.includes(task.milestone.id));
+
+            return matchesLabels && matchesAssignees && matchesMilestones;
         });
-    }, [tasks, selectedLabels, excludedLabels, selectedAssignees]);
+    }, [tasks, selectedLabels, excludedLabels, selectedAssignees, selectedMilestones]);
 
     // Design constants aligned with theme
     const colors = {
@@ -1006,7 +1034,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             borderRadius: 3,
         }}>
             {/* Filters */}
-            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', gap: 2 }}>
+            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <FormControl size="small" sx={{ minWidth: 200 }}>
                     <InputLabel>Include Labels</InputLabel>
                     <Select
@@ -1170,7 +1198,52 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                     </Select>
                 </FormControl>
 
-                {(selectedLabels.length > 0 || excludedLabels.length > 0 || statusLabels.length > 0 || selectedAssignees.length > 0) && (
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <InputLabel>Milestones</InputLabel>
+                    <Select<number[]>
+                        multiple
+                        value={selectedMilestones}
+                        onChange={(e: SelectChangeEvent<number[]>) => {
+                            const value = e.target.value;
+                            setSelectedMilestones(Array.isArray(value) ? value : []);
+                        }}
+                        input={<OutlinedInput label="Milestones" />}
+                        renderValue={(selected: number[]) => (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {selected.map((value: number) => {
+                                    const milestone = uniqueMilestones.find(m => m.id === value);
+                                    return milestone ? (
+                                        <Chip
+                                            key={value}
+                                            label={milestone.title}
+                                            size="small"
+                                            onDelete={() => {
+                                                setSelectedMilestones(selectedMilestones.filter(id => id !== value));
+                                            }}
+                                        />
+                                    ) : null;
+                                })}
+                            </Box>
+                        )}
+                    >
+                        {uniqueMilestones.map((milestone) => (
+                            <MenuItem key={milestone.id} value={milestone.id}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="body2">
+                                        {milestone.title}
+                                    </Typography>
+                                    {milestone.due_date && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            (Due: {new Date(milestone.due_date).toLocaleDateString()})
+                                        </Typography>
+                                    )}
+                                </Box>
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+
+                {(selectedLabels.length > 0 || excludedLabels.length > 0 || statusLabels.length > 0 || selectedAssignees.length > 0 || selectedMilestones.length > 0) && (
                     <Button
                         size="small"
                         variant="outlined"
@@ -1179,6 +1252,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                             setExcludedLabels([]);
                             setStatusLabels([]);
                             setSelectedAssignees([]);
+                            setSelectedMilestones([]);
                         }}
                     >
                         Clear All Filters

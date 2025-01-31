@@ -12,6 +12,9 @@ import {
     LinearProgress,
     OutlinedInput,
     Popover,
+    FormControl,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -35,6 +38,7 @@ interface TaskModalProps {
     onTitleChange: (taskId: number, newTitle: string) => void;
     onDescriptionChange: (taskId: number, newDescription: string) => void;
     onDateChange: (taskId: number, field: 'start_date' | 'due_date', value: string | null) => void;
+    onMilestoneChange?: (taskId: number, milestoneId: number | null) => void;
     uniqueLabels: string[];
     allUsers: Array<{
         id: number;
@@ -72,6 +76,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
     onTitleChange,
     onDescriptionChange,
     onDateChange,
+    onMilestoneChange,
     uniqueLabels,
     allUsers
 }) => {
@@ -88,6 +93,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
     const [notes, setNotes] = useState<Note[]>(task.notes || []);
     const [isLoadingNotes, setIsLoadingNotes] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
+    const [milestones, setMilestones] = useState<Array<{
+        id: number;
+        title: string;
+        due_date?: string;
+    }>>([]);
+    const [loadingMilestones, setLoadingMilestones] = useState(false);
 
     // Load notes when modal opens
     useEffect(() => {
@@ -103,6 +114,40 @@ const TaskModal: React.FC<TaskModalProps> = ({
             contentRef.current.style.display = '';
         }
     }, [isLoadingNotes, notes]);
+
+    // Load milestones when modal opens
+    useEffect(() => {
+        const loadMilestones = async () => {
+            try {
+                setLoadingMilestones(true);
+                const gitlabUrl = localStorage.getItem('gitlabUrl');
+                const token = localStorage.getItem('token');
+
+                if (!gitlabUrl || !token || !task.projectId) {
+                    console.error('Missing required parameters');
+                    return;
+                }
+
+                const response = await axios.get(
+                    `${getApiUrl()}/gitlab/projects/${task.projectId}/milestones`,
+                    {
+                        params: {
+                            gitlabUrl: `https://${gitlabUrl}`,
+                            token
+                        }
+                    }
+                );
+
+                setMilestones(response.data);
+            } catch (error) {
+                console.error('Error loading milestones:', error);
+            } finally {
+                setLoadingMilestones(false);
+            }
+        };
+
+        loadMilestones();
+    }, [task.projectId]);
 
     const loadNotes = async () => {
         try {
@@ -287,6 +332,35 @@ const TaskModal: React.FC<TaskModalProps> = ({
             }
         } catch (error) {
             console.error('Error updating date:', error);
+        }
+    };
+
+    const handleMilestoneChange = async (milestoneId: number | null) => {
+        try {
+            const gitlabUrl = localStorage.getItem('gitlabUrl');
+            const token = localStorage.getItem('token');
+
+            if (!gitlabUrl || !token || !task.projectId) {
+                console.error('Missing required parameters');
+                return;
+            }
+
+            await axios.put(
+                `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}`,
+                { milestone_id: milestoneId },
+                {
+                    params: {
+                        gitlabUrl: `https://${gitlabUrl}`,
+                        token
+                    }
+                }
+            );
+
+            if (onMilestoneChange) {
+                onMilestoneChange(task.id, milestoneId);
+            }
+        } catch (error) {
+            console.error('Error updating milestone:', error);
         }
     };
 
@@ -988,6 +1062,39 @@ const TaskModal: React.FC<TaskModalProps> = ({
                                             </Box>
                                         )}
                                     </Stack>
+                                </Paper>
+
+                                {/* Milestone */}
+                                <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+                                        Milestone
+                                    </Typography>
+                                    <FormControl fullWidth size="small">
+                                        <Select
+                                            value={task.milestone?.id || ''}
+                                            onChange={(e) => handleMilestoneChange(e.target.value ? Number(e.target.value) : null)}
+                                            displayEmpty
+                                            disabled={loadingMilestones}
+                                        >
+                                            <MenuItem value="">
+                                                <em>No milestone</em>
+                                            </MenuItem>
+                                            {milestones.map((milestone) => (
+                                                <MenuItem key={milestone.id} value={milestone.id}>
+                                                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <Typography variant="body2">
+                                                            {milestone.title}
+                                                        </Typography>
+                                                        {milestone.due_date && (
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                Due: {new Date(milestone.due_date).toLocaleDateString()}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
                                 </Paper>
                             </Box>
                         </Box>

@@ -363,6 +363,53 @@ const App = () => {
     }
   };
 
+  const handleMilestoneChange = async (taskId: number, milestoneId: number | null) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task?.projectId) {
+        console.error('Task project ID not found');
+        return;
+      }
+
+      const gitlabUrl = localStorage.getItem('gitlabUrl');
+      const token = localStorage.getItem('token');
+
+      if (!gitlabUrl || !token) {
+        console.error('GitLab URL or token not found');
+        return;
+      }
+
+      await axios.put(
+        `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}`,
+        { milestone_id: milestoneId },
+        {
+          params: {
+            gitlabUrl: `https://${gitlabUrl}`,
+            token
+          }
+        }
+      );
+
+      // Update local state
+      setTasks(tasks.map(t => {
+        if (t.id === taskId) {
+          return {
+            ...t,
+            milestone: milestoneId ? {
+              id: milestoneId,
+              title: '', // Will be updated in next data fetch
+              due_date: null
+            } : null
+          };
+        }
+        return t;
+      }));
+
+    } catch (error) {
+      console.error('Error updating milestone:', error);
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{
@@ -498,6 +545,7 @@ const App = () => {
             onTitleChange={handleTitleChange}
             onDescriptionChange={handleDescriptionChange}
             onDateChange={handleDateChange}
+            onMilestoneChange={handleMilestoneChange}
             uniqueLabels={uniqueLabels}
             allUsers={allUsers}
           />
