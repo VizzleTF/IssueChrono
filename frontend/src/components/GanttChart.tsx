@@ -118,36 +118,42 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
 
     // Update tasks loading logic
     useEffect(() => {
-        setIsLoading(true);
-        setLoadedCount(0);
+        const loadTasks = async () => {
+            try {
+                setIsLoading(true);
+                setLoadedCount(0);
+                setTotalCount(initialTasks.length);
+                setTasks([]); // Clear existing tasks
 
-        // Process tasks in chunks
-        const chunkSize = 1000;
-        const processChunk = (startIndex: number) => {
-            const chunk = initialTasks.slice(startIndex, startIndex + chunkSize);
-            setTasks(prevTasks => [...prevTasks, ...chunk]);
-            setLoadedCount(startIndex + chunk.length);
+                // Process tasks in chunks
+                const chunkSize = 1000;
+                let processedTasks: Task[] = [];
 
-            if (startIndex + chunkSize < initialTasks.length) {
-                setTimeout(() => processChunk(startIndex + chunkSize), 100);
-            } else {
+                for (let i = 0; i < initialTasks.length; i += chunkSize) {
+                    const chunk = initialTasks.slice(i, i + chunkSize);
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Add delay between chunks
+                    processedTasks = [...processedTasks, ...chunk];
+                    setTasks(processedTasks);
+                    setLoadedCount(processedTasks.length);
+                }
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            } finally {
                 setIsLoading(false);
             }
         };
 
-        setTotalCount(initialTasks.length);
-        setTasks([]); // Clear existing tasks
         if (initialTasks.length > 0) {
-            processChunk(0);
+            loadTasks();
         } else {
+            setTasks([]);
             setIsLoading(false);
         }
     }, [initialTasks]);
 
-    // Clear cache and update tasks when initialTasks change
+    // Remove the duplicate effect that was updating tasks
     useEffect(() => {
-        avatarCache.clear(); // Clear avatar cache
-        setTasks(initialTasks);
+        avatarCache.clear(); // Only clear avatar cache
     }, [initialTasks]);
 
     // Chart constants
@@ -1109,27 +1115,49 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             {/* Loading Progress */}
             {isLoading && (
                 <Box sx={{
-                    position: 'absolute',
+                    position: 'fixed',
                     top: 0,
                     left: 0,
                     right: 0,
-                    zIndex: 10,
-                    bgcolor: 'primary.main',
-                    color: 'primary.contrastText',
-                    p: 1,
+                    bottom: 0,
+                    zIndex: 9999,
+                    bgcolor: 'rgba(255, 255, 255, 0.9)',
+                    backdropFilter: 'blur(4px)',
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 1
+                    gap: 2
                 }}>
-                    <LinearProgress
-                        variant="determinate"
-                        value={(loadedCount / totalCount) * 100}
-                        sx={{ width: 200 }}
-                    />
-                    <Typography variant="body2">
-                        Loading tasks: {loadedCount} / {totalCount}
-                    </Typography>
+                    <Box sx={{
+                        bgcolor: 'background.paper',
+                        p: 4,
+                        borderRadius: 2,
+                        boxShadow: theme.shadows[4],
+                        maxWidth: 400,
+                        width: '90%'
+                    }}>
+                        <Typography variant="h6" color="primary" align="center" gutterBottom>
+                            Loading Tasks
+                        </Typography>
+                        <LinearProgress
+                            variant="determinate"
+                            value={(loadedCount / totalCount) * 100}
+                            sx={{
+                                height: 10,
+                                borderRadius: 5,
+                                mb: 1,
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                '& .MuiLinearProgress-bar': {
+                                    borderRadius: 5,
+                                    bgcolor: theme.palette.primary.main
+                                }
+                            }}
+                        />
+                        <Typography variant="body2" color="text.secondary" align="center">
+                            {loadedCount} of {totalCount} tasks loaded ({Math.round((loadedCount / totalCount) * 100)}%)
+                        </Typography>
+                    </Box>
                 </Box>
             )}
 
