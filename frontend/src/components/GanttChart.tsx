@@ -13,7 +13,6 @@ import {
     Button,
     Typography,
     SelectChangeEvent,
-    LinearProgress,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import axios from 'axios';
@@ -84,10 +83,7 @@ const UserAvatar = memo(({ src, name, size = 24 }: { src: string; name: string; 
 
 const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
     const theme = useTheme();
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [loadedCount, setLoadedCount] = useState(0);
-    const [totalCount, setTotalCount] = useState(0);
+    const [tasks, setTasks] = useState<Task[]>(initialTasks);
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [scrollPosition, setScrollPosition] = useState(0);
@@ -116,61 +112,10 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         }
     });
 
-    // Update tasks loading logic
+    // Clear cache and update tasks when initialTasks change
     useEffect(() => {
-        let isMounted = true;
-
-        const loadTasks = async () => {
-            if (!isMounted) return;
-
-            // Initialize loading state first
-            setIsLoading(true);
-            setLoadedCount(0);
-            setTotalCount(initialTasks.length);
-            setTasks([]);
-
-            try {
-                // Process tasks in chunks
-                const chunkSize = 1000;
-                let processedTasks: Task[] = [];
-
-                for (let i = 0; i < initialTasks.length; i += chunkSize) {
-                    if (!isMounted) return;
-
-                    const chunk = initialTasks.slice(i, i + chunkSize);
-                    await new Promise(resolve => setTimeout(resolve, 50)); // Reduced delay for smoother loading
-
-                    if (!isMounted) return;
-                    processedTasks = [...processedTasks, ...chunk];
-                    setTasks(processedTasks);
-                    setLoadedCount(Math.min(i + chunk.length, initialTasks.length));
-                }
-            } catch (error) {
-                console.error('Error loading tasks:', error);
-            } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
-            }
-        };
-
-        // Start loading immediately
-        if (initialTasks.length > 0) {
-            loadTasks();
-        } else {
-            setTasks([]);
-            setIsLoading(false);
-        }
-
-        // Cleanup function
-        return () => {
-            isMounted = false;
-        };
-    }, [initialTasks]);
-
-    // Remove the duplicate effect that was updating tasks
-    useEffect(() => {
-        avatarCache.clear(); // Only clear avatar cache
+        avatarCache.clear(); // Clear avatar cache
+        setTasks(initialTasks);
     }, [initialTasks]);
 
     // Chart constants
@@ -1129,44 +1074,6 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             bgcolor: 'background.paper',
             borderRadius: 3,
         }}>
-            {/* Loading Progress */}
-            {isLoading && (
-                <Box sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 9999,
-                    bgcolor: 'background.paper',
-                    p: 4,
-                    borderRadius: 2,
-                    boxShadow: theme.shadows[4],
-                    maxWidth: 400,
-                    width: '90%',
-                }}>
-                    <Typography variant="h6" color="primary" align="center" gutterBottom>
-                        Loading Tasks
-                    </Typography>
-                    <LinearProgress
-                        variant="determinate"
-                        value={(loadedCount / totalCount) * 100}
-                        sx={{
-                            height: 10,
-                            borderRadius: 5,
-                            mb: 1,
-                            bgcolor: alpha(theme.palette.primary.main, 0.1),
-                            '& .MuiLinearProgress-bar': {
-                                borderRadius: 5,
-                                bgcolor: theme.palette.primary.main
-                            }
-                        }}
-                    />
-                    <Typography variant="body2" color="text.secondary" align="center">
-                        {loadedCount} of {totalCount} tasks loaded ({Math.round((loadedCount / totalCount) * 100)}%)
-                    </Typography>
-                </Box>
-            )}
-
             {/* Filters */}
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <FormControl size="small">

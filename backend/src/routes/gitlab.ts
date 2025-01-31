@@ -343,6 +343,11 @@ const getProjectIssues = async (gitlabUrl: string, projectId: string, token: str
     let page = 1;
     const allIssues = [];
 
+    // Calculate date one year ago in ISO format
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const created_after = oneYearAgo.toISOString();
+
     while (true) {
         const response = await axios.get(
             `${gitlabUrl}/api/v4/projects/${projectId}/issues`,
@@ -350,6 +355,7 @@ const getProjectIssues = async (gitlabUrl: string, projectId: string, token: str
                 headers: { 'PRIVATE-TOKEN': token },
                 params: {
                     ...params,
+                    created_after,
                     per_page: 100,
                     page
                 }
