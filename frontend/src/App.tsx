@@ -8,7 +8,6 @@ import {
   Paper,
   CircularProgress,
   Alert,
-  useTheme,
   ThemeProvider,
   createTheme,
   alpha,
@@ -16,6 +15,7 @@ import {
 import axios from 'axios';
 import GanttChart from './components/GanttChart';
 import TaskModal from './components/TaskModal';
+import { getApiUrl } from './utils/api';
 
 // Создаем кастомную тему
 const theme = createTheme({
@@ -196,14 +196,33 @@ const App = () => {
         throw new Error('Please enter at least one project ID');
       }
 
-      const response = await axios.get(`${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues`, {
-        params: {
-          gitlabUrl: `https://${gitlabUrl}`,
-          projectId: cleanProjectIds.join(','),
-          token
-        }
+      const requestUrl = `${getApiUrl()}/gitlab/issues`;
+      const requestParams = {
+        gitlabUrl: `https://${gitlabUrl}`,
+        projectId: cleanProjectIds.join(','),
+        token
+      };
+
+      console.log('Making request to:', {
+        url: requestUrl,
+        params: requestParams,
+        fullUrl: `${requestUrl}?${new URLSearchParams(requestParams).toString()}`,
+        apiUrl: getApiUrl()
       });
-      setTasks(response.data);
+
+      const response = await axios.get(requestUrl, {
+        params: requestParams
+      });
+
+      console.log('GitLab API response:', {
+        type: typeof response.data,
+        isArray: Array.isArray(response.data),
+        data: response.data
+      });
+
+      // Ensure response.data is an array
+      const tasksData = Array.isArray(response.data) ? response.data : [];
+      setTasks(tasksData);
       setConnected(true);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to connect');
@@ -241,13 +260,44 @@ const App = () => {
     }));
   };
 
-  const handleTitleChange = (taskId: number, newTitle: string) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        return { ...task, name: newTitle };
+  const handleTitleChange = async (taskId: number, newTitle: string) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task?.projectId) {
+        console.error('Task project ID not found');
+        return;
       }
-      return task;
-    }));
+
+      const gitlabUrl = localStorage.getItem('gitlabUrl');
+      const token = localStorage.getItem('token');
+
+      if (!gitlabUrl || !token) {
+        console.error('GitLab URL or token not found');
+        return;
+      }
+
+      await axios.put(
+        `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}`,
+        { title: newTitle },
+        {
+          params: {
+            gitlabUrl: `https://${gitlabUrl}`,
+            token
+          }
+        }
+      );
+
+      // Update local state
+      setTasks(tasks.map(t => {
+        if (t.id === taskId) {
+          return { ...t, name: newTitle };
+        }
+        return t;
+      }));
+
+    } catch (error) {
+      console.error('Error updating title:', error);
+    }
   };
 
   const handleDescriptionChange = (taskId: number, newDescription: string) => {
@@ -306,8 +356,8 @@ const App = () => {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{
-        minHeight: '100vh',
-        height: '100vh',
+        minHeight: '97.5vh',
+        height: '97.5vh',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: 'background.default',
@@ -368,7 +418,7 @@ const App = () => {
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
                 placeholder="Enter project IDs"
-                helperText="Multiple IDs can be separated by space or comma"
+                helperText="Multiple projectIDs"
                 type="text"
               />
               <TextField

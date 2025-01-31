@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback, memo } from 'react';
 import {
     Box,
     Slider,
@@ -11,28 +11,13 @@ import {
     InputLabel,
     OutlinedInput,
     Button,
-    Paper,
     Typography,
-    Stack,
-    Link,
-    IconButton,
-    Divider,
-    LinearProgress,
-    ListSubheader,
-    Popover
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import CloseIcon from '@mui/icons-material/Close';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import FlagIcon from '@mui/icons-material/Flag';
-import UpdateIcon from '@mui/icons-material/Update';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
-import CommentIcon from '@mui/icons-material/Comment';
 import axios from 'axios';
 import TaskModal from './TaskModal';
 import useImageCache from '../hooks/useImageCache';
+import { getApiUrl } from '../utils/api';
 
 interface Task {
     id: number;
@@ -128,8 +113,9 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
     const headerHeight = 80;
     const avatarColumnWidth = 40;
     const infoColumnWidth = 400;
-    const taskNameHeight = 20;
-    const labelsHeight = 16;
+    const taskNameHeight = 15;
+    const labelsHeight = 18;
+    const labelSpacing = 10;
     const tooltipOffset = -200;
     const barHeight = 32;
     const barPadding = (taskHeight - barHeight) / 2;
@@ -390,7 +376,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             }
 
             await axios.put(
-                `${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
+                `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}`,
                 { labels: newLabels.join(',') },
                 {
                     params: {
@@ -425,7 +411,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             }
 
             await axios.put(
-                `${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
+                `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}`,
                 { assignee_id: newAssigneeId },
                 {
                     params: {
@@ -463,7 +449,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             }
 
             await axios.put(
-                `${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
+                `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}`,
                 { title: newTitle },
                 {
                     params: {
@@ -498,7 +484,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             }
 
             await axios.put(
-                `${(window as any).RUNTIME_CONFIG.VITE_API_URL}/gitlab/issues/${task.projectId}/${task.iid}`,
+                `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}`,
                 { description: newDescription },
                 {
                     params: {
@@ -817,7 +803,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
 
             // Draw labels using the new function
             if (task.labels && task.labels.length > 0) {
-                const labelY = y + taskNameHeight + 4;
+                const labelY = y + taskNameHeight + labelSpacing;
                 let currentX = avatarColumnWidth + 8;
 
                 task.labels.forEach(label => {
@@ -1254,13 +1240,13 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                             height: 0,
                         },
                         '& .MuiSlider-track': {
-                            width: 18,
+                            width: 10,
                             backgroundColor: theme.palette.primary.main,
                             border: 'none',
                         },
                         '& .MuiSlider-rail': {
-                            width: 18,
-                            backgroundColor: theme.palette.grey[200],
+                            width: 10,
+                            backgroundColor: theme.palette.grey[300],
                             opacity: 1,
                         },
                     }}
@@ -1286,13 +1272,13 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                             height: 0,
                         },
                         '& .MuiSlider-track': {
-                            height: 18,
+                            height: 10,
                             backgroundColor: theme.palette.primary.main,
                             border: 'none',
                         },
                         '& .MuiSlider-rail': {
-                            height: 18,
-                            backgroundColor: theme.palette.grey[200],
+                            height: 10,
+                            backgroundColor: theme.palette.grey[300],
                             opacity: 1,
                         },
                     }}
