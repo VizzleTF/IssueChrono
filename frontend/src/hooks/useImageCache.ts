@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 
 const imageCache = new Map<string, HTMLImageElement>();
 
+export const clearImageCache = () => {
+    imageCache.clear();
+};
+
 const useImageCache = (url: string): HTMLImageElement | null => {
     const [image, setImage] = useState<HTMLImageElement | null>(
         imageCache.get(url) || null
@@ -10,10 +14,16 @@ const useImageCache = (url: string): HTMLImageElement | null => {
     useEffect(() => {
         if (!url) return;
 
-        // Return cached image if available
+        // Return cached image if available and valid
         if (imageCache.has(url)) {
-            setImage(imageCache.get(url) || null);
-            return;
+            const cachedImage = imageCache.get(url);
+            if (cachedImage && cachedImage.complete && cachedImage.naturalWidth > 0) {
+                setImage(cachedImage);
+                return;
+            } else {
+                // Remove invalid cached image
+                imageCache.delete(url);
+            }
         }
 
         // Load and cache new image
@@ -24,6 +34,7 @@ const useImageCache = (url: string): HTMLImageElement | null => {
             setImage(img);
         };
         img.onerror = () => {
+            imageCache.delete(url);
             setImage(null);
         };
 

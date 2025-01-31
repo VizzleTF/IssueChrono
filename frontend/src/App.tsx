@@ -16,6 +16,7 @@ import axios from 'axios';
 import GanttChart from './components/GanttChart';
 import TaskModal from './components/TaskModal';
 import { getApiUrl } from './utils/api';
+import { clearImageCache } from './hooks/useImageCache';
 
 // Создаем кастомную тему
 const theme = createTheme({
@@ -186,6 +187,9 @@ const App = () => {
     setLoading(true);
     setError('');
     try {
+      // Clear image cache before loading new project
+      clearImageCache();
+
       // Clean and validate project IDs
       const cleanProjectIds = projectId
         .split(/[\s,]+/)
@@ -195,6 +199,12 @@ const App = () => {
       if (cleanProjectIds.length === 0) {
         throw new Error('Please enter at least one project ID');
       }
+
+      // Reset tasks and other state
+      setTasks([]);
+      setSelectedTask(null);
+      setUniqueLabels([]);
+      setAllUsers([]);
 
       const requestUrl = `${getApiUrl()}/gitlab/issues`;
       const requestParams = {

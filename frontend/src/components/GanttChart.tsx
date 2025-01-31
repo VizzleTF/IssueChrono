@@ -106,6 +106,13 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
     const [horizontalSliderValue, setHorizontalSliderValue] = useState(0);
     const [verticalSliderValue, setVerticalSliderValue] = useState(0);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const avatarCache = useMemo(() => new Map<string, HTMLImageElement>(), []);
+
+    // Clear cache and update tasks when initialTasks change
+    useEffect(() => {
+        avatarCache.clear(); // Clear avatar cache
+        setTasks(initialTasks);
+    }, [initialTasks]);
 
     // Chart constants
     const dayWidth = 7;
@@ -580,8 +587,6 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         ctx.textBaseline = 'middle';
         ctx.fillText(label.name, x + 8, y + height / 2);
     };
-
-    const avatarCache = useMemo(() => new Map<string, HTMLImageElement>(), []);
 
     const drawAvatar = useCallback((
         ctx: CanvasRenderingContext2D,
