@@ -57,6 +57,7 @@ interface Task {
         due_date?: string;
     };
     iid: number;
+    state: string;
 }
 
 interface GanttChartProps {
@@ -99,6 +100,15 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             return cached ? JSON.parse(cached) : [];
         } catch {
             return [];
+        }
+    });
+
+    const [showClosedIssues, setShowClosedIssues] = useState<boolean>(() => {
+        try {
+            const cached = localStorage.getItem('showClosedIssues');
+            return cached ? JSON.parse(cached) : false;
+        } catch {
+            return false;
         }
     });
 
@@ -179,6 +189,10 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         localStorage.setItem('selectedMilestones', JSON.stringify(selectedMilestones));
     }, [selectedMilestones]);
 
+    useEffect(() => {
+        localStorage.setItem('showClosedIssues', JSON.stringify(showClosedIssues));
+    }, [showClosedIssues]);
+
     // Status colors - will be assigned dynamically based on selection order
     const STATUS_COLORS = [
         theme.palette.success.main,
@@ -224,6 +238,11 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
     // Filter tasks based on selected labels, excluded labels and assignees
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
+            // Filter out closed issues if not showing them
+            if (!showClosedIssues && task.state === 'closed') {
+                return false;
+            }
+
             const taskLabels = task.labels.map(l => l.name) || [];
 
             // Check if task has any excluded labels
@@ -246,7 +265,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
 
             return matchesLabels && matchesAssignees && matchesMilestones;
         });
-    }, [tasks, selectedLabels, excludedLabels, selectedAssignees, selectedMilestones]);
+    }, [tasks, selectedLabels, excludedLabels, selectedAssignees, selectedMilestones, showClosedIssues]);
 
     // Design constants aligned with theme
     const colors = {
@@ -533,45 +552,52 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         startX: number,
         endX: number,
         y: number,
-        barHeight: number,
+        height: number,
         radius: number
     ) => {
         const barY = y + barPadding;
+        const width = endX - startX;
+
+        // Get task color based on status labels
         const taskColor = getTaskColor(task.labels);
-
-        // Clear the area first
-        ctx.clearRect(startX, barY, endX - startX, barHeight);
-
-        // Save context state
-        ctx.save();
-
-        // Set shadow
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetY = 2;
 
         // Draw background
         ctx.beginPath();
-        ctx.roundRect(startX, barY, endX - startX, barHeight, radius);
+        ctx.roundRect(startX, barY, width, height, radius);
         ctx.fillStyle = taskColor.bg;
         ctx.fill();
 
-        // Draw progress if exists
+        // Draw progress
         if (task.progress > 0) {
-            const progressWidth = (endX - startX) * (task.progress / 100);
             ctx.beginPath();
-            ctx.roundRect(startX, barY, progressWidth, barHeight, radius);
+            const progressWidth = (width * task.progress) / 100;
+            ctx.roundRect(startX, barY, progressWidth, height, radius);
             ctx.fillStyle = taskColor.progress;
             ctx.fill();
         }
 
+        // Draw task name
+        ctx.fillStyle = colors.text;
+        ctx.font = `400 12px ${theme.typography.fontFamily}`;
+        const textY = barY + height / 2 + 4;
+        ctx.fillText(task.name, startX + 8, textY);
+
         // Draw border
+        ctx.beginPath();
+        ctx.roundRect(startX, barY, width, height, radius);
         ctx.strokeStyle = taskColor.border;
-        ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Restore context state
-        ctx.restore();
+        // If task is closed, add a strikethrough line
+        if (task.state === 'closed') {
+            const textWidth = ctx.measureText(task.name).width;
+            ctx.beginPath();
+            ctx.moveTo(startX + 8, textY - 2);
+            ctx.lineTo(startX + 8 + textWidth, textY - 2);
+            ctx.strokeStyle = hexToRgba(colors.text, 0.8);
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
     };
 
     // Draw label with colors
@@ -1008,6 +1034,36 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         </Box>
     );
 
+    // Add cursor style when hovering over task area
+    const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Check if mouse is over task name area (second column)
+        if (x >= avatarColumnWidth && x <= avatarColumnWidth + infoColumnWidth && y >= headerHeight) {
+            const taskIndex = Math.floor((y - headerHeight + verticalScroll) / taskHeight);
+            const task = filteredTasks[taskIndex];
+
+            if (task) {
+                // Calculate task name boundaries
+                const taskY = headerHeight + taskIndex * taskHeight;
+                const nameY = taskY + (taskHeight - taskNameHeight) / 2;
+
+                // Check if mouse is over task name
+                if (y >= nameY && y <= nameY + taskNameHeight) {
+                    canvas.style.cursor = 'pointer';
+                    return;
+                }
+            }
+        }
+
+        canvas.style.cursor = 'default';
+    }, [filteredTasks, verticalScroll]);
+
     return (
         <Box sx={{
             position: 'relative',
@@ -1020,6 +1076,18 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         }}>
             {/* Filters */}
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <FormControl size="small">
+                    <Button
+                        variant={showClosedIssues ? "contained" : "outlined"}
+                        onClick={() => setShowClosedIssues(!showClosedIssues)}
+                        size="small"
+                        color={showClosedIssues ? "primary" : "inherit"}
+                        sx={{ minWidth: 140 }}
+                    >
+                        {showClosedIssues ? "Hide Closed" : "Show Closed"}
+                    </Button>
+                </FormControl>
+
                 <FormControl size="small" sx={{ minWidth: 200 }}>
                     <InputLabel>Include Labels</InputLabel>
                     <Select
@@ -1258,6 +1326,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                 <canvas
                     ref={canvasRef}
                     onClick={handleCanvasClick}
+                    onMouseMove={handleMouseMove}
                     style={{ display: 'block' }}
                 />
                 {selectedTask && (

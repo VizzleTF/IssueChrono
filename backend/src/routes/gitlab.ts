@@ -46,6 +46,7 @@ interface GitLabIssue {
     weight: number;
     milestone: any;
     notes: any[];
+    state: string;
 }
 
 function normalizeGitLabUrl(urlString: string): string {
@@ -164,6 +165,7 @@ router.get('/issues', async (req: Request, res: Response) => {
             projectIds.map(async (id) => {
                 const issues = await getProjectIssues(baseUrl, id, token as string, {
                     with_labels_details: true,
+                    state: 'all',
                     // Exclude unnecessary fields
                     notes: false,
                     discussions: false,
@@ -226,7 +228,8 @@ router.get('/issues', async (req: Request, res: Response) => {
                         id: issue.milestone.id,
                         title: issue.milestone.title,
                         due_date: issue.milestone.due_date
-                    } : null
+                    } : null,
+                    state: issue.state
                 }));
             })
         );

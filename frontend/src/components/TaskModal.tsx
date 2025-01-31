@@ -180,12 +180,20 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 const token = localStorage.getItem('token');
 
                 if (!gitlabUrl || !token || !task.projectId) {
-                    console.error('Missing required parameters');
+                    console.error('Missing required parameters for loading milestones:', {
+                        hasGitlabUrl: !!gitlabUrl,
+                        hasToken: !!token,
+                        projectId: task.projectId
+                    });
                     return;
                 }
 
+                // Remove any square brackets and clean projectId
+                const cleanProjectId = task.projectId.replace(/[\[\]]/g, '').trim();
+                console.log('Loading milestones for project:', cleanProjectId);
+
                 const response = await axios.get(
-                    `${getApiUrl()}/gitlab/projects/${task.projectId}/milestones`,
+                    `${getApiUrl()}/gitlab/projects/${cleanProjectId}/milestones`,
                     {
                         params: {
                             gitlabUrl: `https://${gitlabUrl}`,
@@ -194,15 +202,19 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     }
                 );
 
+                console.log('Loaded milestones:', response.data);
                 setMilestones(response.data);
             } catch (error) {
                 console.error('Error loading milestones:', error);
+                setMilestones([]); // Reset milestones on error
             } finally {
                 setLoadingMilestones(false);
             }
         };
 
-        loadMilestones();
+        if (task.projectId) {
+            loadMilestones();
+        }
     }, [task.projectId]);
 
     const handleAddComment = async () => {
