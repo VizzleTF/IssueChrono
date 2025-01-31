@@ -159,96 +159,84 @@ router.get('/issues', async (req: Request, res: Response) => {
         const baseUrl = normalizeGitLabUrl(gitlabUrl.toString());
         const gitlabClient = createGitLabClient(baseUrl, token as string);
 
-        // Split project IDs and clean them
-        const projectIds = projectId.toString()
-            .split(/[\s,]+/)
-            .map(id => id.trim())
-            .filter(id => id.length > 0);
-
-        let allIssues: GitLabIssue[] = [];
-
-        // Fetch issues for each project
-        for (const pid of projectIds) {
-            let page = 1;
-            const perPage = 100;
-
-            while (true) {
-                console.log(`Fetching issues for project ${pid}, page ${page} with params:`, {
-                    page,
-                    per_page: perPage,
-                    order_by: 'created_at',
-                    sort: 'desc',
-                    with_labels_details: true
-                });
-
-                const response = await gitlabClient.get<GitLabIssue[]>(`/api/v4/projects/${pid}/issues`, {
+        // Split project IDs and fetch issues for each project
+        const projectIds = projectId.toString().split(',');
+        const allIssues = await Promise.all(
+            projectIds.map(async (id) => {
+                const response = await gitlabClient.get(`/api/v4/projects/${id}/issues`, {
                     params: {
-                        page,
-                        per_page: perPage,
-                        order_by: 'created_at',
-                        sort: 'desc',
-                        with_labels_details: true
+                        per_page: 100,
+                        // Request only necessary fields for initial load
+                        with_labels_details: true,
+                        // Exclude unnecessary fields
+                        notes: false,
+                        discussions: false,
+                        changes: false,
+                        links: false,
+                        references: false,
+                        epic_notes: false,
+                        award_emoji: false,
+                        tasks: false,
+                        user_notes_count: false,
+                        merge_requests_count: false,
+                        upvotes: false,
+                        downvotes: false,
+                        // Include only necessary fields
+                        _fields: [
+                            'id',
+                            'iid',
+                            'title',
+                            'description',
+                            'state',
+                            'created_at',
+                            'updated_at',
+                            'closed_at',
+                            'labels',
+                            'milestone',
+                            'assignees',
+                            'author',
+                            'project_id',
+                            'web_url',
+                            'time_stats',
+                            'task_completion_status',
+                            'weight',
+                            'due_date'
+                        ].join(',')
                     }
                 });
 
-                const issues = response.data;
-                if (issues.length === 0) break;
-
-                // Log first issue's labels for debugging
-                if (page === 1 && issues.length > 0) {
-                    console.log('First issue labels:', JSON.stringify(issues[0].labels, null, 2));
-                    console.log('Raw response data for first issue:', JSON.stringify(issues[0], null, 2));
-                }
-
-                // Add project ID to each issue for reference
-                const issuesWithProject = issues.map(issue => ({
-                    ...issue,
-                    projectId: pid
+                return response.data.map((issue: any) => ({
+                    id: issue.id,
+                    iid: issue.iid,
+                    name: issue.title,
+                    description: issue.description,
+                    start: issue.created_at,
+                    end: issue.due_date,
+                    progress: issue.task_completion_status?.count > 0
+                        ? Math.round((issue.task_completion_status.completed_count / issue.task_completion_status.count) * 100)
+                        : 0,
+                    dependencies: [],
+                    labels: issue.labels || [],
+                    assignees: issue.assignees,
+                    projectId: id,
+                    web_url: issue.web_url,
+                    author: issue.author,
+                    created_at: issue.created_at,
+                    updated_at: issue.updated_at,
+                    weight: issue.weight,
+                    time_estimate: issue.time_stats?.time_estimate,
+                    total_time_spent: issue.time_stats?.total_time_spent,
+                    due_date: issue.due_date,
+                    milestone: issue.milestone ? {
+                        id: issue.milestone.id,
+                        title: issue.milestone.title,
+                        due_date: issue.milestone.due_date
+                    } : null
                 }));
+            })
+        );
 
-                allIssues = allIssues.concat(issuesWithProject);
-                page++;
-
-                // Check if we've received less than perPage items, meaning this is the last page
-                if (issues.length < perPage) break;
-            }
-        }
-
-        // Log sample formatted issue
-        const formattedIssues = allIssues.map((issue) => ({
-            id: issue.id,
-            iid: issue.iid,
-            name: issue.title,
-            description: issue.description,
-            start: issue.created_at,
-            end: issue.due_date,
-            progress: issue.time_stats?.time_estimate ?
-                (issue.time_stats.total_time_spent / issue.time_stats.time_estimate) * 100 : 0,
-            dependencies: [],
-            labels: issue.labels.map(label => ({
-                name: label.name,
-                color: label.color,
-                text_color: label.text_color
-            })),
-            assignees: issue.assignees,
-            projectId: issue.projectId,
-            web_url: issue.web_url,
-            author: issue.author,
-            created_at: issue.created_at,
-            updated_at: issue.updated_at,
-            weight: issue.weight,
-            time_estimate: issue.time_stats?.time_estimate,
-            total_time_spent: issue.time_stats?.total_time_spent,
-            due_date: issue.due_date,
-            milestone: issue.milestone,
-            notes: issue.notes
-        }));
-
-        if (formattedIssues.length > 0) {
-            console.log('Sample formatted issue labels:', JSON.stringify(formattedIssues[0].labels, null, 2));
-        }
-
-        res.json(formattedIssues);
+        res.json(allIssues.flat());
     } catch (error: unknown) {
         console.error('Error fetching issues:', error);
         if (error instanceof Error && error.message === 'Invalid GitLab URL') {
@@ -631,6 +619,83 @@ router.put('/issues/:projectId/:issueIid', async (req: Request, res: Response) =
             console.error('GitLab API error response:', error.response?.data);
         }
         handleError(error, res);
+    }
+});
+
+// Get full issue details
+router.get('/issues/:projectId/:issueIid', async (req: Request, res: Response) => {
+    try {
+        const { projectId, issueIid } = req.params;
+        const { token, gitlabUrl } = req.query;
+
+        if (!projectId || !issueIid || !token || !gitlabUrl) {
+            return res.status(400).json({ error: 'Project ID, Issue IID, token, and GitLab URL are required' });
+        }
+
+        const baseUrl = normalizeGitLabUrl(gitlabUrl.toString());
+        const gitlabClient = createGitLabClient(baseUrl, token as string);
+
+        const response = await gitlabClient.get(`/api/v4/projects/${projectId}/issues/${issueIid}`);
+        const issue = response.data;
+
+        // Format the response to match our Task interface
+        const formattedIssue = {
+            id: issue.id,
+            iid: issue.iid,
+            name: issue.title,
+            description: issue.description,
+            start: issue.created_at,
+            end: issue.due_date,
+            progress: issue.task_completion_status?.count > 0
+                ? Math.round((issue.task_completion_status.completed_count / issue.task_completion_status.count) * 100)
+                : 0,
+            dependencies: [],
+            labels: issue.labels || [],
+            assignees: issue.assignees,
+            projectId,
+            web_url: issue.web_url,
+            author: issue.author,
+            created_at: issue.created_at,
+            updated_at: issue.updated_at,
+            weight: issue.weight,
+            time_estimate: issue.time_stats?.time_estimate,
+            total_time_spent: issue.time_stats?.total_time_spent,
+            due_date: issue.due_date,
+            milestone: issue.milestone ? {
+                id: issue.milestone.id,
+                title: issue.milestone.title,
+                due_date: issue.milestone.due_date
+            } : null,
+            // Additional details that are only available in full issue view
+            description_html: issue.description_html,
+            references: issue.references,
+            task_completion_status: issue.task_completion_status,
+            time_stats: issue.time_stats,
+            confidential: issue.confidential,
+            discussion_locked: issue.discussion_locked,
+            user_notes_count: issue.user_notes_count,
+            state: issue.state
+        };
+
+        res.json(formattedIssue);
+    } catch (error: unknown) {
+        console.error('Error fetching issue details:', error);
+        if (error instanceof Error && error.message === 'Invalid GitLab URL') {
+            res.status(400).json({ error: 'Invalid GitLab URL format' });
+        } else if (axios.isAxiosError(error)) {
+            const axiosError = error as AxiosError;
+            if (axiosError.response?.status === 401) {
+                res.status(401).json({ error: 'Invalid GitLab token' });
+            } else if (axiosError.code === 'ECONNREFUSED') {
+                res.status(503).json({ error: 'Unable to connect to GitLab server' });
+            } else {
+                res.status(axiosError.response?.status || 500).json({
+                    error: `Failed to fetch issue details from GitLab: ${axiosError.message}`
+                });
+            }
+        } else {
+            res.status(500).json({ error: 'Failed to fetch issue details from GitLab' });
+        }
     }
 });
 

@@ -56,21 +56,6 @@ interface Task {
         title: string;
         due_date?: string;
     };
-    parent?: {
-        id: number;
-        title: string;
-        web_url: string;
-    };
-    notes?: {
-        id: number;
-        author: {
-            id: number;
-            name: string;
-            avatar_url: string;
-        };
-        body: string;
-        created_at: string;
-    }[];
     iid: number;
 }
 

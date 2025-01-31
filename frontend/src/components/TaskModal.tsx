@@ -90,7 +90,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
     const [editedDescription, setEditedDescription] = useState(task.description || '');
     const [newComment, setNewComment] = useState('');
     const [editingComment, setEditingComment] = useState<{ id: number; body: string } | null>(null);
-    const [notes, setNotes] = useState<Note[]>(task.notes || []);
+    const [notes, setNotes] = useState<Note[]>([]);
     const [isLoadingNotes, setIsLoadingNotes] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
     const [milestones, setMilestones] = useState<Array<{
@@ -99,21 +99,77 @@ const TaskModal: React.FC<TaskModalProps> = ({
         due_date?: string;
     }>>([]);
     const [loadingMilestones, setLoadingMilestones] = useState(false);
+    const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+    const [taskDetails, setTaskDetails] = useState<any>(null);
+
+    // Load task details when modal opens
+    useEffect(() => {
+        const loadTaskDetails = async () => {
+            try {
+                setIsLoadingDetails(true);
+                const gitlabUrl = localStorage.getItem('gitlabUrl');
+                const token = localStorage.getItem('token');
+
+                if (!gitlabUrl || !token || !task.projectId || !task.iid) {
+                    console.error('Missing required parameters');
+                    return;
+                }
+
+                const response = await axios.get(
+                    `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}`,
+                    {
+                        params: {
+                            gitlabUrl: `https://${gitlabUrl}`,
+                            token
+                        }
+                    }
+                );
+
+                setTaskDetails(response.data);
+                setEditedDescription(response.data.description || '');
+            } catch (error) {
+                console.error('Error loading task details:', error);
+            } finally {
+                setIsLoadingDetails(false);
+            }
+        };
+
+        loadTaskDetails();
+    }, [task.id]);
 
     // Load notes when modal opens
     useEffect(() => {
+        const loadNotes = async () => {
+            try {
+                setIsLoadingNotes(true);
+                const gitlabUrl = localStorage.getItem('gitlabUrl');
+                const token = localStorage.getItem('token');
+
+                if (!gitlabUrl || !token || !task.projectId || !task.iid) {
+                    console.error('Missing required parameters');
+                    return;
+                }
+
+                const response = await axios.get(
+                    `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}/notes`,
+                    {
+                        params: {
+                            gitlabUrl: `https://${gitlabUrl}`,
+                            token
+                        }
+                    }
+                );
+
+                setNotes(response.data);
+            } catch (error) {
+                console.error('Error loading notes:', error);
+            } finally {
+                setIsLoadingNotes(false);
+            }
+        };
+
         loadNotes();
     }, [task.id]);
-
-    // Force layout recalculation after notes are loaded
-    useEffect(() => {
-        if (!isLoadingNotes && contentRef.current) {
-            // Принудительно вызываем reflow
-            contentRef.current.style.display = 'none';
-            contentRef.current.offsetHeight; // trigger reflow
-            contentRef.current.style.display = '';
-        }
-    }, [isLoadingNotes, notes]);
 
     // Load milestones when modal opens
     useEffect(() => {
@@ -148,35 +204,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
         loadMilestones();
     }, [task.projectId]);
-
-    const loadNotes = async () => {
-        try {
-            setIsLoadingNotes(true);
-            const gitlabUrl = localStorage.getItem('gitlabUrl');
-            const token = localStorage.getItem('token');
-
-            if (!gitlabUrl || !token || !task.projectId || !task.iid) {
-                console.error('Missing required parameters');
-                return;
-            }
-
-            const response = await axios.get(
-                `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}/notes`,
-                {
-                    params: {
-                        gitlabUrl: `https://${gitlabUrl}`,
-                        token
-                    }
-                }
-            );
-
-            setNotes(response.data);
-        } catch (error) {
-            console.error('Error loading notes:', error);
-        } finally {
-            setIsLoadingNotes(false);
-        }
-    };
 
     const handleAddComment = async () => {
         if (!newComment.trim()) return;
@@ -396,6 +423,20 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     overflow: 'hidden'
                 }}
             >
+                {/* Show loading state */}
+                {(isLoadingDetails || isLoadingNotes || loadingMilestones) && (
+                    <Box sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 1,
+                        bgcolor: 'primary.main'
+                    }}>
+                        <LinearProgress />
+                    </Box>
+                )}
+
                 {/* Header */}
                 <Box sx={{
                     p: 2,
@@ -539,7 +580,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                                                 <Button
                                                     size="small"
                                                     onClick={() => {
-                                                        setEditedDescription(task.description || '');
+                                                        setEditedDescription(taskDetails?.description || task.description || '');
                                                         setIsEditingDescription(false);
                                                     }}
                                                 >
@@ -563,7 +604,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                                                 '& a': { color: 'primary.main' }
                                             }}
                                         >
-                                            {task.description || 'Нет описания'}
+                                            {taskDetails?.description || task.description || 'Нет описания'}
                                         </Typography>
                                     )}
                                 </Paper>
