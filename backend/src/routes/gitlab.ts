@@ -157,55 +157,50 @@ router.get('/issues', async (req: Request, res: Response) => {
         }
 
         const baseUrl = normalizeGitLabUrl(gitlabUrl.toString());
-        const gitlabClient = createGitLabClient(baseUrl, token as string);
 
         // Split project IDs and fetch issues for each project
         const projectIds = projectId.toString().split(',');
         const allIssues = await Promise.all(
             projectIds.map(async (id) => {
-                const response = await gitlabClient.get(`/api/v4/projects/${id}/issues`, {
-                    params: {
-                        per_page: 100,
-                        // Request only necessary fields for initial load
-                        with_labels_details: true,
-                        // Exclude unnecessary fields
-                        notes: false,
-                        discussions: false,
-                        changes: false,
-                        links: false,
-                        references: false,
-                        epic_notes: false,
-                        award_emoji: false,
-                        tasks: false,
-                        user_notes_count: false,
-                        merge_requests_count: false,
-                        upvotes: false,
-                        downvotes: false,
-                        // Include only necessary fields
-                        _fields: [
-                            'id',
-                            'iid',
-                            'title',
-                            'description',
-                            'state',
-                            'created_at',
-                            'updated_at',
-                            'closed_at',
-                            'labels',
-                            'milestone',
-                            'assignees',
-                            'author',
-                            'project_id',
-                            'web_url',
-                            'time_stats',
-                            'task_completion_status',
-                            'weight',
-                            'due_date'
-                        ].join(',')
-                    }
+                const issues = await getProjectIssues(baseUrl, id, token as string, {
+                    with_labels_details: true,
+                    // Exclude unnecessary fields
+                    notes: false,
+                    discussions: false,
+                    changes: false,
+                    links: false,
+                    references: false,
+                    epic_notes: false,
+                    award_emoji: false,
+                    tasks: false,
+                    user_notes_count: false,
+                    merge_requests_count: false,
+                    upvotes: false,
+                    downvotes: false,
+                    // Include only necessary fields
+                    _fields: [
+                        'id',
+                        'iid',
+                        'title',
+                        'description',
+                        'state',
+                        'created_at',
+                        'updated_at',
+                        'closed_at',
+                        'labels',
+                        'milestone',
+                        'assignees',
+                        'author',
+                        'project_id',
+                        'web_url',
+                        'time_stats',
+                        'task_completion_status',
+                        'weight',
+                        'due_date'
+                    ].join(',')
                 });
 
-                return response.data.map((issue: any) => ({
+                return issues.map((issue: any) => ({
                     id: issue.id,
                     iid: issue.iid,
                     name: issue.title,
@@ -342,17 +337,37 @@ const deleteIssueNote = async (gitlabUrl: string, projectId: string, issueIid: n
 
 // Issues API methods
 const getProjectIssues = async (gitlabUrl: string, projectId: string, token: string, params: any = {}) => {
-    const response = await axios.get(
-        `${gitlabUrl}/api/v4/projects/${projectId}/issues`,
-        {
-            headers: { 'PRIVATE-TOKEN': token },
-            params: {
-                ...params,
-                per_page: 100 // Максимальное количество задач на страницу
+    let page = 1;
+    const allIssues = [];
+
+    while (true) {
+        const response = await axios.get(
+            `${gitlabUrl}/api/v4/projects/${projectId}/issues`,
+            {
+                headers: { 'PRIVATE-TOKEN': token },
+                params: {
+                    ...params,
+                    per_page: 100,
+                    page
+                }
             }
+        );
+
+        if (response.data.length === 0) {
+            break;
         }
-    );
-    return response.data;
+
+        allIssues.push(...response.data);
+
+        // Check if we've received less than per_page items, meaning this is the last page
+        if (response.data.length < 100) {
+            break;
+        }
+
+        page++;
+    }
+
+    return allIssues;
 };
 
 const getIssue = async (gitlabUrl: string, projectId: string, issueIid: number, token: string) => {
