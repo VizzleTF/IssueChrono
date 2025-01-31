@@ -11,12 +11,14 @@ import {
   ThemeProvider,
   createTheme,
   alpha,
+  LinearProgress,
 } from '@mui/material';
 import axios from 'axios';
 import GanttChart from './components/GanttChart';
 import TaskModal from './components/TaskModal';
 import { getApiUrl } from './utils/api';
 import { clearImageCache } from './hooks/useImageCache';
+import { Task } from './types/Task';
 
 // Создаем кастомную тему
 const theme = createTheme({
@@ -91,47 +93,6 @@ const theme = createTheme({
   },
 });
 
-interface Task {
-  id: number;
-  name: string;
-  description: string;
-  created_at: string;
-  due_date: string | null;
-  labels: Array<{
-    name: string;
-    color: string;
-    text_color: string;
-  }>;
-  assignees: Array<{
-    id: number;
-    name: string;
-    avatar_url: string;
-  }>;
-  projectId: string;
-  iid: number;
-  start: string;
-  end: string | null;
-  progress: number;
-  dependencies: string[];
-  type: string;
-  hideChildren: boolean;
-  displayOrder: number;
-  web_url: string;
-  author: {
-    id: number;
-    name: string;
-    avatar_url: string;
-  };
-  updated_at: string;
-  weight: number | undefined;
-  milestone: any;
-  time_stats: {
-    time_estimate: number;
-    total_time_spent: number;
-  };
-  notes: any[];
-}
-
 interface User {
   id: number;
   name: string;
@@ -150,8 +111,11 @@ const App = () => {
     localStorage.getItem('token') || ''
   );
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [totalProgress, setTotalProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(() =>
     localStorage.getItem('connected') === 'true'
   );
@@ -184,11 +148,20 @@ const App = () => {
   }, []); // Run only once on mount
 
   const handleConnect = async () => {
-    setLoading(true);
-    setError('');
+    const gitlabUrl = localStorage.getItem('gitlabUrl');
+    const token = localStorage.getItem('token');
+
+    if (!gitlabUrl || !token || !projectId) {
+      setError('Please enter GitLab URL, token and project IDs');
+      return;
+    }
+
     try {
-      // Clear image cache before loading new project
-      clearImageCache();
+      setIsLoading(true);
+      setLoadingStep('Connecting to GitLab...');
+      setLoadingProgress(0);
+      setTotalProgress(0);
+      setError(null);
 
       // Clean and validate project IDs
       const cleanProjectIds = projectId
@@ -200,45 +173,65 @@ const App = () => {
         throw new Error('Please enter at least one project ID');
       }
 
-      // Reset tasks and other state
-      setTasks([]);
-      setSelectedTask(null);
-      setUniqueLabels([]);
-      setAllUsers([]);
-
-      const requestUrl = `${getApiUrl()}/gitlab/issues`;
-      const requestParams = {
-        gitlabUrl: `https://${gitlabUrl}`,
-        projectId: cleanProjectIds.join(','),
-        token
-      };
-
-      console.log('Making request to:', {
-        url: requestUrl,
-        params: requestParams,
-        fullUrl: `${requestUrl}?${new URLSearchParams(requestParams).toString()}`,
-        apiUrl: getApiUrl()
+      // Step 1: Test connection
+      await axios.get(`${getApiUrl()}/gitlab/test`, {
+        params: {
+          gitlabUrl: `https://${gitlabUrl}`,
+          token
+        }
       });
 
-      const response = await axios.get(requestUrl, {
-        params: requestParams
-      });
+      // Step 2: Load issues for each project
+      setLoadingStep('Loading issues...');
+      setLoadingProgress(0);
+      setTotalProgress(cleanProjectIds.length);
 
-      console.log('GitLab API response:', {
-        type: typeof response.data,
-        isArray: Array.isArray(response.data),
-        data: response.data
-      });
+      let allTasks: Task[] = [];
+      for (let i = 0; i < cleanProjectIds.length; i++) {
+        const projectId = cleanProjectIds[i];
+        try {
+          const issuesResponse = await axios.get(
+            `${getApiUrl()}/gitlab/issues`,
+            {
+              params: {
+                gitlabUrl: `https://${gitlabUrl}`,
+                projectId,
+                token
+              }
+            }
+          );
 
-      // Ensure response.data is an array
-      const tasksData = Array.isArray(response.data) ? response.data : [];
-      setTasks(tasksData);
+          // Ensure response.data is an array
+          const projectTasks = Array.isArray(issuesResponse.data) ? issuesResponse.data : [];
+          allTasks = [...allTasks, ...projectTasks];
+          setLoadingProgress(i + 1);
+        } catch (error) {
+          console.error(`Error loading issues for project ${projectId}:`, error);
+        }
+      }
+
+      // Step 3: Process and sort tasks
+      setLoadingStep('Processing tasks...');
+      setLoadingProgress(0);
+      setTotalProgress(allTasks.length);
+
+      const processedTasks = allTasks
+        .filter(task => task.start) // Filter tasks with start date
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+      setTasks(processedTasks);
+      setLoadingStep('Complete!');
       setConnected(true);
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to connect');
+    } catch (error: any) {
+      console.error('Connection error:', error);
+      setError(error.message || 'Failed to connect to GitLab. Please check your URL and token.');
       setConnected(false);
+    } finally {
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingStep('');
+      }, 1000);
     }
-    setLoading(false);
   };
 
   const handleLabelChange = (taskId: number, newLabels: string[]) => {
@@ -488,7 +481,7 @@ const App = () => {
               <Button
                 variant="contained"
                 onClick={handleConnect}
-                disabled={loading || !gitlabUrl || !projectId || !token}
+                disabled={isLoading || !gitlabUrl || !projectId || !token}
                 sx={{
                   height: 56,
                   px: 4,
@@ -496,7 +489,7 @@ const App = () => {
                   mt: 1
                 }}
               >
-                {loading ? (
+                {isLoading ? (
                   <CircularProgress size={24} color="inherit" />
                 ) : (
                   'Connect'
@@ -519,6 +512,47 @@ const App = () => {
             )}
           </Paper>
         </Box>
+
+        {/* Loading Progress */}
+        {isLoading && (
+          <Box sx={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 9999,
+            bgcolor: 'background.paper',
+            p: 4,
+            borderRadius: 2,
+            boxShadow: 24,
+            maxWidth: 400,
+            width: '90%',
+          }}>
+            <Typography variant="h6" color="primary" align="center" gutterBottom>
+              {loadingStep}
+            </Typography>
+            {totalProgress > 0 && (
+              <>
+                <LinearProgress
+                  variant="determinate"
+                  value={(loadingProgress / totalProgress) * 100}
+                  sx={{
+                    height: 10,
+                    borderRadius: 5,
+                    mb: 1,
+                    bgcolor: alpha('#1976d2', 0.1),
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 5,
+                    }
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary" align="center">
+                  {loadingProgress} of {totalProgress} {loadingStep.includes('issues') ? 'projects' : 'tasks'} loaded
+                </Typography>
+              </>
+            )}
+          </Box>
+        )}
 
         {connected && tasks.length > 0 && (
           <Box sx={{

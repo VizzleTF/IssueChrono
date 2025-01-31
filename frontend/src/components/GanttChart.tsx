@@ -118,37 +118,54 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
 
     // Update tasks loading logic
     useEffect(() => {
-        const loadTasks = async () => {
-            try {
-                setIsLoading(true);
-                setLoadedCount(0);
-                setTotalCount(initialTasks.length);
-                setTasks([]); // Clear existing tasks
+        let isMounted = true;
 
+        const loadTasks = async () => {
+            if (!isMounted) return;
+
+            // Initialize loading state first
+            setIsLoading(true);
+            setLoadedCount(0);
+            setTotalCount(initialTasks.length);
+            setTasks([]);
+
+            try {
                 // Process tasks in chunks
                 const chunkSize = 1000;
                 let processedTasks: Task[] = [];
 
                 for (let i = 0; i < initialTasks.length; i += chunkSize) {
+                    if (!isMounted) return;
+
                     const chunk = initialTasks.slice(i, i + chunkSize);
-                    await new Promise(resolve => setTimeout(resolve, 100)); // Add delay between chunks
+                    await new Promise(resolve => setTimeout(resolve, 50)); // Reduced delay for smoother loading
+
+                    if (!isMounted) return;
                     processedTasks = [...processedTasks, ...chunk];
                     setTasks(processedTasks);
-                    setLoadedCount(processedTasks.length);
+                    setLoadedCount(Math.min(i + chunk.length, initialTasks.length));
                 }
             } catch (error) {
                 console.error('Error loading tasks:', error);
             } finally {
-                setIsLoading(false);
+                if (isMounted) {
+                    setIsLoading(false);
+                }
             }
         };
 
+        // Start loading immediately
         if (initialTasks.length > 0) {
             loadTasks();
         } else {
             setTasks([]);
             setIsLoading(false);
         }
+
+        // Cleanup function
+        return () => {
+            isMounted = false;
+        };
     }, [initialTasks]);
 
     // Remove the duplicate effect that was updating tasks
@@ -1115,49 +1132,38 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
             {/* Loading Progress */}
             {isLoading && (
                 <Box sx={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
                     zIndex: 9999,
-                    bgcolor: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(4px)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 2
+                    bgcolor: 'background.paper',
+                    p: 4,
+                    borderRadius: 2,
+                    boxShadow: theme.shadows[4],
+                    maxWidth: 400,
+                    width: '90%',
                 }}>
-                    <Box sx={{
-                        bgcolor: 'background.paper',
-                        p: 4,
-                        borderRadius: 2,
-                        boxShadow: theme.shadows[4],
-                        maxWidth: 400,
-                        width: '90%'
-                    }}>
-                        <Typography variant="h6" color="primary" align="center" gutterBottom>
-                            Loading Tasks
-                        </Typography>
-                        <LinearProgress
-                            variant="determinate"
-                            value={(loadedCount / totalCount) * 100}
-                            sx={{
-                                height: 10,
+                    <Typography variant="h6" color="primary" align="center" gutterBottom>
+                        Loading Tasks
+                    </Typography>
+                    <LinearProgress
+                        variant="determinate"
+                        value={(loadedCount / totalCount) * 100}
+                        sx={{
+                            height: 10,
+                            borderRadius: 5,
+                            mb: 1,
+                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                            '& .MuiLinearProgress-bar': {
                                 borderRadius: 5,
-                                mb: 1,
-                                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                '& .MuiLinearProgress-bar': {
-                                    borderRadius: 5,
-                                    bgcolor: theme.palette.primary.main
-                                }
-                            }}
-                        />
-                        <Typography variant="body2" color="text.secondary" align="center">
-                            {loadedCount} of {totalCount} tasks loaded ({Math.round((loadedCount / totalCount) * 100)}%)
-                        </Typography>
-                    </Box>
+                                bgcolor: theme.palette.primary.main
+                            }
+                        }}
+                    />
+                    <Typography variant="body2" color="text.secondary" align="center">
+                        {loadedCount} of {totalCount} tasks loaded ({Math.round((loadedCount / totalCount) * 100)}%)
+                    </Typography>
                 </Box>
             )}
 
