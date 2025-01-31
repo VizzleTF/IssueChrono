@@ -2,8 +2,18 @@ apiVersion: v1
 entries:
   gantt:
   - apiVersion: v2
+    appVersion: 1.0.31
+    created: "2025-01-31T13:52:40.94280702Z"
+    description: A Helm chart for Gantt application
+    digest: 9350859c5faf3436913ea8459cb8e6cf4c1552e784ea20597243c583620685b7
+    name: gantt
+    type: application
+    urls:
+    - https://vizzletf.github.io/IssueChrono/gantt-0.1.31.tgz
+    version: 0.1.31
+  - apiVersion: v2
     appVersion: 1.0.30
-    created: "2025-01-31T13:17:56.094668096Z"
+    created: "2025-01-31T13:52:40.942433804Z"
     description: A Helm chart for Gantt application
     digest: afd762a1a276b7cb507cc467b765b8d8a5554c9df8a6caa708b83279bb2095ab
     name: gantt
@@ -13,7 +23,7 @@ entries:
     version: 0.1.30
   - apiVersion: v2
     appVersion: 1.0.29
-    created: "2025-01-31T13:17:56.094030552Z"
+    created: "2025-01-31T13:52:40.941801072Z"
     description: A Helm chart for Gantt application
     digest: 325b90f04e8ac6fbb4c8ed2aa235547824779242e2dd46d93d23fcfb804556b3
     name: gantt
@@ -23,7 +33,7 @@ entries:
     version: 0.1.29
   - apiVersion: v2
     appVersion: 1.0.28
-    created: "2025-01-31T13:17:56.093691257Z"
+    created: "2025-01-31T13:52:40.941181936Z"
     description: A Helm chart for Gantt application
     digest: dfd408b822108f2fc8780efc84f611bac8912112712d8c913b534bd7ce002928
     name: gantt
@@ -33,7 +43,7 @@ entries:
     version: 0.1.28
   - apiVersion: v2
     appVersion: 1.0.27
-    created: "2025-01-31T13:17:56.093334279Z"
+    created: "2025-01-31T13:52:40.939630498Z"
     description: A Helm chart for Gantt application
     digest: 6b29c74a292842b9af5ab758d06329e73bcd910a9d90bf91e29ab9ccba7bda77
     name: gantt
@@ -43,7 +53,7 @@ entries:
     version: 0.1.27
   - apiVersion: v2
     appVersion: 1.0.26
-    created: "2025-01-31T13:17:56.092640169Z"
+    created: "2025-01-31T13:52:40.939028634Z"
     description: A Helm chart for Gantt application
     digest: e4f560e3b10e03c3cf1907e6a8613e938fab7c785e28f8e74ae49c669acfb201
     name: gantt
@@ -53,7 +63,7 @@ entries:
     version: 0.1.26
   - apiVersion: v2
     appVersion: 1.0.25
-    created: "2025-01-31T13:17:56.091725697Z"
+    created: "2025-01-31T13:52:40.938379793Z"
     description: A Helm chart for Gantt application
     digest: 5a87c2c5ff75b0633cb032e02762dc76f1e26f7b906390ecd9cdeea3ba94e843
     name: gantt
@@ -63,7 +73,7 @@ entries:
     version: 0.1.25
   - apiVersion: v2
     appVersion: 1.0.24
-    created: "2025-01-31T13:17:56.091369901Z"
+    created: "2025-01-31T13:52:40.937752151Z"
     description: A Helm chart for Gantt application
     digest: bdc02daa26c57aed0e9467166b13b42b873eabc388d8c7166c9fb2fce6ed62c9
     name: gantt
@@ -73,7 +83,7 @@ entries:
     version: 0.1.24
   - apiVersion: v2
     appVersion: 1.0.23
-    created: "2025-01-31T13:17:56.091040514Z"
+    created: "2025-01-31T13:52:40.937078613Z"
     description: A Helm chart for Gantt application
     digest: 01e7e6ee73bc2ccbf42114b5a3604a5f7d909d619e679f6b197c28786d193860
     name: gantt
@@ -83,7 +93,7 @@ entries:
     version: 0.1.23
   - apiVersion: v2
     appVersion: 1.0.22
-    created: "2025-01-31T13:17:56.090768054Z"
+    created: "2025-01-31T13:52:40.936449919Z"
     description: A Helm chart for Gantt application
     digest: 8e6b23f165d50dde478b7698aec63cc35ceaa0795e83324c9ceac3a8d38f5263
     name: gantt
@@ -93,7 +103,7 @@ entries:
     version: 0.1.22
   - apiVersion: v2
     appVersion: 1.0.21
-    created: "2025-01-31T13:17:56.090487819Z"
+    created: "2025-01-31T13:52:40.935892018Z"
     description: A Helm chart for Gantt application
     digest: 73efa7ab6dc9419841b8edaeefa1e96ef894c96c813c53f131700c82fd3e043c
     name: gantt
@@ -103,7 +113,7 @@ entries:
     version: 0.1.21
   - apiVersion: v2
     appVersion: 1.0.20
-    created: "2025-01-31T13:17:56.090182377Z"
+    created: "2025-01-31T13:52:40.935293691Z"
     description: A Helm chart for Gantt application
     digest: 42fd353d249e40bf7db98907c8d9b9277e5097c08eedf839a27b7cf3c324ba40
     name: gantt
@@ -113,7 +123,7 @@ entries:
     version: 0.1.20
   - apiVersion: v2
     appVersion: 1.0.19
-    created: "2025-01-31T13:17:56.08988971Z"
+    created: "2025-01-31T13:52:40.934717705Z"
     description: A Helm chart for Gantt application
     digest: cd3a74004158d5ccd6dcb14f7a87dd8da1236cdf5293ee48a77211967eeac774
     name: gantt
@@ -123,7 +133,7 @@ entries:
     version: 0.1.19
   - apiVersion: v2
     appVersion: 1.0.18
-    created: "2025-01-31T13:17:56.089577265Z"
+    created: "2025-01-31T13:52:40.934091727Z"
     description: A Helm chart for Gantt application
     digest: 6d05a2d8c96a8d7b793f28b18dd7d88f34c79a8512440da45a010b9818af1e88
     name: gantt
@@ -133,7 +143,7 @@ entries:
     version: 0.1.18
   - apiVersion: v2
     appVersion: 1.0.17
-    created: "2025-01-31T13:17:56.089258017Z"
+    created: "2025-01-31T13:52:40.9334401Z"
     description: A Helm chart for Gantt application
     digest: fb5e95bb5b294a59419a80e90070f8ff4593389cea93a010c22202d9e9f9b7d5
     name: gantt
@@ -143,7 +153,7 @@ entries:
     version: 0.1.17
   - apiVersion: v2
     appVersion: 1.0.16
-    created: "2025-01-31T13:17:56.088946954Z"
+    created: "2025-01-31T13:52:40.932835571Z"
     description: A Helm chart for Gantt application
     digest: 2251f9e907adae01ba8f0fd9a17a2856238c8f930856af0a150a99fbb6a2553f
     name: gantt
@@ -153,7 +163,7 @@ entries:
     version: 0.1.16
   - apiVersion: v2
     appVersion: 1.0.15
-    created: "2025-01-31T13:17:56.088651281Z"
+    created: "2025-01-31T13:52:40.932260798Z"
     description: A Helm chart for Gantt application
     digest: 85cf105798a053eef21532f8e1d294e374602a5357d918dad80bee15e80f3823
     name: gantt
@@ -163,7 +173,7 @@ entries:
     version: 0.1.15
   - apiVersion: v2
     appVersion: 1.0.13
-    created: "2025-01-31T13:17:56.088332123Z"
+    created: "2025-01-31T13:52:40.931729256Z"
     description: A Helm chart for Gantt application
     digest: 4f0b9d1a1a6ebfd6e358809107c7f26f45bbfbb4b6935fb94c30691e0e77e9d0
     name: gantt
@@ -173,7 +183,7 @@ entries:
     version: 0.1.13
   - apiVersion: v2
     appVersion: 1.0.3
-    created: "2025-01-31T13:17:56.094320304Z"
+    created: "2025-01-31T13:52:40.942098738Z"
     description: A Helm chart for Gantt application
     digest: 65d0b68cd02e75548998e0beabacc26b11796b0ef5724737866ec405d14da1aa
     name: gantt
@@ -181,4 +191,4 @@ entries:
     urls:
     - https://vizzletf.github.io/IssueChrono/gantt-0.1.3.tgz
     version: 0.1.3
-generated: "2025-01-31T13:17:56.0878707Z"
+generated: "2025-01-31T13:52:40.930963155Z"
