@@ -545,6 +545,25 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         // No-op for now, as we don't need to handle date changes in the Gantt chart
     };
 
+    const handleStateChange = async (taskId: number, newState: string, newLabels?: string) => {
+        setTasks(prevTasks =>
+            prevTasks.map(task => {
+                if (task.id === taskId) {
+                    const updatedTask = { ...task, state: newState };
+
+                    // If new labels were provided, update them
+                    if (newLabels !== undefined) {
+                        const labelNames = newLabels.split(',').filter(Boolean);
+                        updatedTask.labels = task.labels.filter(label => labelNames.includes(label.name));
+                    }
+
+                    return updatedTask;
+                }
+                return task;
+            })
+        );
+    };
+
     // Draw task bar with colors
     const drawTaskBar = (
         ctx: CanvasRenderingContext2D,
@@ -1347,8 +1366,10 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                         onTitleChange={handleTitleChange}
                         onDescriptionChange={handleDescriptionChange}
                         onDateChange={handleDateChange}
+                        onStateChange={handleStateChange}
                         uniqueLabels={uniqueLabels}
                         allUsers={uniqueAssignees}
+                        statusLabels={statusLabels}
                     />
                 )}
             </Box>

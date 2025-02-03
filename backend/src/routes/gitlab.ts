@@ -629,7 +629,7 @@ router.put('/issues/:projectId/:issueIid', async (req: Request, res: Response) =
     try {
         const { projectId, issueIid } = req.params;
         const { gitlabUrl, token } = req.query;
-        const { labels, assignee_id, title, description, due_date, start_date } = req.body;
+        const { labels, assignee_id, title, description, due_date, start_date, state_event } = req.body;
 
         if (!gitlabUrl || !token || !projectId || !issueIid) {
             return res.status(400).json({ error: 'Missing required parameters' });
@@ -647,17 +647,19 @@ router.put('/issues/:projectId/:issueIid', async (req: Request, res: Response) =
             description,
             due_date,
             start_date,
+            state_event,
             baseUrl
         });
 
-        // Update issue with new labels, assignee, title, description and dates
+        // Update issue with new labels, assignee, title, description, dates and state
         const response = await gitlabClient.put(`/api/v4/projects/${projectId}/issues/${issueIid}`, {
             ...(labels && { labels }), // Add labels only if they are provided
             ...(assignee_id !== undefined && { assignee_id }), // Add assignee_id only if it is provided
             ...(title && { title }), // Add title only if it is provided
             ...(description !== undefined && { description }), // Add description only if it is provided
             ...(due_date !== undefined && { due_date }), // Add due_date only if it is provided
-            ...(start_date !== undefined && { created_at: start_date }) // Add start_date only if it is provided
+            ...(start_date !== undefined && { created_at: start_date }), // Add start_date only if it is provided
+            ...(state_event && { state_event }) // Add state_event if provided (can be 'close' or 'reopen')
         });
 
         console.log('GitLab API response:', response.data);

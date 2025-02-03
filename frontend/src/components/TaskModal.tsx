@@ -39,12 +39,14 @@ interface TaskModalProps {
     onDescriptionChange: (taskId: number, newDescription: string) => void;
     onDateChange: (taskId: number, field: 'start_date' | 'due_date', value: string | null) => void;
     onMilestoneChange?: (taskId: number, milestoneId: number | null) => void;
+    onStateChange?: (taskId: number, newState: string, labels?: string) => void;
     uniqueLabels: string[];
     allUsers: Array<{
         id: number;
         name: string;
         avatar_url: string;
     }>;
+    statusLabels: string[];
 }
 
 // Add type for note
@@ -77,8 +79,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
     onDescriptionChange,
     onDateChange,
     onMilestoneChange,
+    onStateChange,
     uniqueLabels,
-    allUsers
+    allUsers,
+    statusLabels
 }) => {
     const theme = useTheme();
     const [labelSearchText, setLabelSearchText] = useState('');
@@ -403,6 +407,50 @@ const TaskModal: React.FC<TaskModalProps> = ({
         }
     };
 
+    const handleStateChange = async () => {
+        try {
+            const gitlabUrl = localStorage.getItem('gitlabUrl');
+            const token = localStorage.getItem('token');
+
+            if (!gitlabUrl || !token || !task.projectId || !task.iid) {
+                console.error('Missing required parameters');
+                return;
+            }
+
+            const state_event = task.state === 'closed' ? 'reopen' : 'close';
+
+            // If we're closing the task, remove status labels
+            let labels;
+            if (state_event === 'close') {
+                // Filter out status labels from current labels
+                labels = task.labels
+                    .filter((label: any) => !statusLabels.includes(label.name))
+                    .map((label: any) => label.name)
+                    .join(',');
+            }
+
+            await axios.put(
+                `${getApiUrl()}/gitlab/issues/${task.projectId}/${task.iid}`,
+                {
+                    state_event,
+                    ...(labels !== undefined && { labels })
+                },
+                {
+                    params: {
+                        gitlabUrl: `https://${gitlabUrl}`,
+                        token
+                    }
+                }
+            );
+
+            if (onStateChange) {
+                onStateChange(task.id, state_event === 'close' ? 'closed' : 'opened', labels);
+            }
+        } catch (error) {
+            console.error('Error updating issue state:', error);
+        }
+    };
+
     return (
         <Box
             onClick={onClose}
@@ -527,6 +575,14 @@ const TaskModal: React.FC<TaskModalProps> = ({
                         </Box>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                            variant="outlined"
+                            color={task.state === 'closed' ? 'success' : 'error'}
+                            onClick={handleStateChange}
+                            size="small"
+                        >
+                            {task.state === 'closed' ? 'Reopen Issue' : 'Close Issue'}
+                        </Button>
                         {task.web_url && (
                             <Button
                                 variant="outlined"
