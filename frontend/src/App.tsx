@@ -421,6 +421,10 @@ const App = () => {
     }
   };
 
+  const handleTasksUpdate = (newTasks: any[]) => {
+    setTasks(newTasks);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{
@@ -520,7 +524,7 @@ const App = () => {
               <LinearProgress />
             </Box>
           )}
-          {connected && tasks && <GanttChart tasks={tasks} />}
+          {connected && tasks && <GanttChart tasks={tasks} onTasksUpdate={handleTasksUpdate} />}
         </Box>
 
         {selectedTask && (
@@ -535,6 +539,7 @@ const App = () => {
             onMilestoneChange={handleMilestoneChange}
             uniqueLabels={uniqueLabels}
             allUsers={allUsers}
+            statusLabels={[]}
           />
         )}
       </Box>

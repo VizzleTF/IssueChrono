@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo, useCallback, memo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback, memo, FC } from 'react';
 import {
     Box,
     Slider,
@@ -13,6 +13,7 @@ import {
     Button,
     Typography,
     SelectChangeEvent,
+    CircularProgress,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import axios from 'axios';
@@ -62,6 +63,7 @@ interface Task {
 
 interface GanttChartProps {
     tasks: Task[];
+    onTasksUpdate?: (tasks: Task[]) => void;
 }
 
 // Memoized Avatar component with image caching
@@ -81,7 +83,15 @@ const UserAvatar = memo(({ src, name, size = 24 }: { src: string; name: string; 
     );
 });
 
-const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
+const AUTO_UPDATE_INTERVALS = {
+    OFF: 0,
+    SEC_10: 10000,
+    SEC_30: 30000,
+    MIN_1: 60000,
+    MIN_5: 300000,
+} as const;
+
+const GanttChart: FC<GanttChartProps> = ({ tasks: initialTasks, onTasksUpdate }) => {
     const theme = useTheme();
     const [tasks, setTasks] = useState<Task[]>(initialTasks);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -112,11 +122,117 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         }
     });
 
-    // Clear cache and update tasks when initialTasks change
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+
+    const [autoUpdateInterval, setAutoUpdateInterval] = useState(() => {
+        const saved = localStorage.getItem('autoUpdateInterval');
+        return saved ? parseInt(saved) : AUTO_UPDATE_INTERVALS.MIN_1;
+    });
+
+    // Initial tasks setup
     useEffect(() => {
         avatarCache.clear(); // Clear avatar cache
         setTasks(initialTasks);
     }, [initialTasks]);
+
+    // Initial data load
+    useEffect(() => {
+        const loadInitialData = async () => {
+            const gitlabUrl = localStorage.getItem('gitlabUrl');
+            const token = localStorage.getItem('token');
+            const projectIds = localStorage.getItem('projectId');
+            const period = localStorage.getItem('period') || '1year';
+
+            if (!gitlabUrl || !token || !projectIds) {
+                console.debug('Skipping initial load: Missing required parameters');
+                return;
+            }
+
+            try {
+                setIsUpdating(true);
+                const response = await axios.get(`${getApiUrl()}/gitlab/issues`, {
+                    params: {
+                        projectId: projectIds,
+                        gitlabUrl: `https://${gitlabUrl}`,
+                        token,
+                        period
+                    }
+                });
+
+                if (Array.isArray(response.data)) {
+                    setTasks(response.data);
+                    setLastUpdateTime(new Date());
+                    if (onTasksUpdate) {
+                        onTasksUpdate(response.data);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+            } finally {
+                setIsUpdating(false);
+            }
+        };
+
+        loadInitialData();
+    }, []); // Run only once on mount
+
+    // Auto-update effect
+    useEffect(() => {
+        // Skip if auto-update is disabled
+        if (autoUpdateInterval === AUTO_UPDATE_INTERVALS.OFF) {
+            return;
+        }
+
+        const updateTasks = async () => {
+            if (isUpdating) return;
+
+            const gitlabUrl = localStorage.getItem('gitlabUrl');
+            const token = localStorage.getItem('token');
+            const projectIds = localStorage.getItem('projectId');
+            const period = localStorage.getItem('period') || '1year';
+
+            if (!gitlabUrl || !token || !projectIds) {
+                console.debug('Skipping auto-update: Missing required parameters');
+                return;
+            }
+
+            try {
+                setIsUpdating(true);
+                const response = await axios.get(`${getApiUrl()}/gitlab/issues`, {
+                    params: {
+                        projectId: projectIds,
+                        gitlabUrl: `https://${gitlabUrl}`,
+                        token,
+                        period
+                    }
+                });
+
+                if (Array.isArray(response.data)) {
+                    setTasks(response.data);
+                    setLastUpdateTime(new Date());
+                    if (onTasksUpdate) {
+                        onTasksUpdate(response.data);
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating tasks:', error);
+            } finally {
+                setIsUpdating(false);
+            }
+        };
+
+        // Set up interval only if auto-update is enabled
+        const intervalId = setInterval(updateTasks, autoUpdateInterval);
+
+        // Cleanup interval on unmount or when interval changes
+        return () => clearInterval(intervalId);
+    }, [autoUpdateInterval, isUpdating, onTasksUpdate]); // Dependencies for auto-update
+
+    // Save interval setting when it changes
+    useEffect(() => {
+        localStorage.setItem('autoUpdateInterval', autoUpdateInterval.toString());
+    }, [autoUpdateInterval]);
 
     // Chart constants
     const dayWidth = 7;
@@ -960,30 +1076,32 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
             const newScrollPosition = Math.min(
                 Math.max(0, scrollPosition + event.deltaX),
-                maxScroll
+                maxScroll || 0
             );
             setScrollPosition(newScrollPosition);
-            setHorizontalSliderValue((newScrollPosition / maxScroll) * 100);
+            setHorizontalSliderValue(maxScroll ? (newScrollPosition / maxScroll) * 100 : 0);
         } else {
             const newVerticalScroll = Math.min(
                 Math.max(0, verticalScroll + event.deltaY),
-                maxVerticalScroll
+                maxVerticalScroll || 0
             );
             setVerticalScroll(newVerticalScroll);
-            setVerticalSliderValue((newVerticalScroll / maxVerticalScroll) * 100);
+            setVerticalSliderValue(maxVerticalScroll ? (newVerticalScroll / maxVerticalScroll) * 100 : 0);
         }
     };
 
     const handleHorizontalSliderChange = (_event: Event, newValue: number | number[]) => {
         const value = newValue as number;
+        if (isNaN(value)) return;
         setHorizontalSliderValue(value);
-        setScrollPosition(maxScroll * (value / 100));
+        setScrollPosition((maxScroll || 0) * (value / 100));
     };
 
     const handleVerticalSliderChange = (_event: Event, newValue: number | number[]) => {
         const value = newValue as number;
+        if (isNaN(value)) return;
         setVerticalSliderValue(value);
-        setVerticalScroll(maxVerticalScroll * (value / 100));
+        setVerticalScroll((maxVerticalScroll || 0) * (value / 100));
     };
 
     // Add state for label search
@@ -1083,6 +1201,33 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         canvas.style.cursor = 'default';
     }, [filteredTasks, verticalScroll]);
 
+    // Add last update time display
+    const renderUpdateInfo = () => (
+        <Typography
+            variant="caption"
+            sx={{
+                position: 'absolute',
+                bottom: 8,
+                left: 8,
+                color: 'text.secondary',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5
+            }}
+        >
+            {isUpdating ? (
+                <>
+                    <CircularProgress size={12} />
+                    Updating...
+                </>
+            ) : (
+                <>
+                    Last updated: {lastUpdateTime.toLocaleTimeString()}
+                </>
+            )}
+        </Typography>
+    );
+
     return (
         <Box sx={{
             position: 'relative',
@@ -1096,6 +1241,21 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
         }}>
             {/* Filters */}
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel>Auto-update</InputLabel>
+                    <Select
+                        value={autoUpdateInterval}
+                        onChange={(e) => setAutoUpdateInterval(Number(e.target.value))}
+                        input={<OutlinedInput label="Auto-update" />}
+                    >
+                        <MenuItem value={AUTO_UPDATE_INTERVALS.OFF}>Off</MenuItem>
+                        <MenuItem value={AUTO_UPDATE_INTERVALS.SEC_10}>Every 10 seconds</MenuItem>
+                        <MenuItem value={AUTO_UPDATE_INTERVALS.SEC_30}>Every 30 seconds</MenuItem>
+                        <MenuItem value={AUTO_UPDATE_INTERVALS.MIN_1}>Every minute</MenuItem>
+                        <MenuItem value={AUTO_UPDATE_INTERVALS.MIN_5}>Every 5 minutes</MenuItem>
+                    </Select>
+                </FormControl>
+
                 <FormControl size="small">
                     <Button
                         variant={showClosedIssues ? "contained" : "outlined"}
@@ -1385,7 +1545,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                 alignItems: 'center',
             }}>
                 <Slider
-                    value={verticalSliderValue}
+                    value={isNaN(verticalSliderValue) ? 0 : verticalSliderValue}
                     onChange={handleVerticalSliderChange}
                     orientation="vertical"
                     aria-label="Vertical scroll"
@@ -1419,7 +1579,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                 px: 1,
             }}>
                 <Slider
-                    value={horizontalSliderValue}
+                    value={isNaN(horizontalSliderValue) ? 0 : horizontalSliderValue}
                     onChange={handleHorizontalSliderChange}
                     aria-label="Horizontal scroll"
                     size="small"
@@ -1441,6 +1601,8 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks: initialTasks }) => {
                     }}
                 />
             </Box>
+
+            {renderUpdateInfo()}
         </Box>
     );
 };
