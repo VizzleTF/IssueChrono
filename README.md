@@ -1,46 +1,98 @@
 # IssueChrono - GitLab Task Visualization
 
-IssueChrono is a web application that provides Gantt chart visualization for GitLab issues and tasks.
+IssueChrono - это веб-приложение для визуализации задач GitLab в виде диаграммы Ганта с расширенными возможностями управления и отслеживания.
 
-## Features
+## Основные возможности
 
-- Interactive Gantt chart view of GitLab issues
-- Task filtering by assignees and labels
-- Real-time updates of task status
-- Drag-and-drop task scheduling
-- Automatic task dependency visualization
+### Визуализация задач
+- Интерактивная диаграмма Ганта для задач GitLab
+- Автоматическое отображение временных рамок задач
+- Индикация прогресса выполнения задач
+- Поддержка нескольких проектов GitLab одновременно
+- Визуальное отображение статуса задач через цветовое кодирование
 
-## Installation
+### Фильтрация и управление
+- Фильтрация задач по:
+  - Меткам (включение/исключение определенных меток)
+  - Исполнителям
+  - Статусу (открытые/закрытые задачи)
+  - Milestone'ам
+- Настраиваемые метки статусов с цветовым кодированием
+- Гибкая система поиска и фильтрации задач
 
-### Using Helm
+### Real-time функциональность
+- Автоматическое обновление данных с настраиваемыми интервалами:
+  - Каждые 10 секунд
+  - Каждые 30 секунд
+  - Каждую минуту
+  - Каждые 5 минут
+- Отслеживание изменений в реальном времени
 
-1. Add the Helm repository:
+### Управление задачами
+- Просмотр детальной информации о задаче
+- Редактирование:
+  - Названия задач
+  - Описания
+  - Меток
+  - Назначенных исполнителей
+  - Сроков выполнения
+- Управление статусом задач (открытие/закрытие)
+- Отслеживание времени выполнения задач
+
+### Визуальное представление
+- Удобная навигация по временной шкале
+- Группировка задач по проектам
+- Отображение аватаров исполнителей
+- Визуализация меток с сохранением цветовой схемы GitLab
+- Интерактивные элементы управления масштабом и прокруткой
+
+## Технические возможности
+
+### Интеграция с GitLab
+- Полная интеграция с GitLab API
+- Поддержка GitLab Self-Hosted и GitLab.com
+- Безопасная аутентификация через токены
+- Кэширование данных для оптимизации производительности
+
+### Масштабируемость
+- Поддержка работы с несколькими проектами
+- Эффективная обработка больших объемов задач
+- Оптимизированные запросы к API GitLab
+
+### Развертывание
+- Поддержка развертывания через Helm в Kubernetes
+- Docker-контейнеризация для простого развертывания
+- Настраиваемая конфигурация через переменные окружения
+
+## Установка
+
+### Использование Helm
+
+1. Добавьте репозиторий Helm:
 ```bash
 helm repo add issuechrono https://vizzletf.github.io/IssueChrono
 helm repo update
 ```
 
-2. Install the chart:
+2. Установите чарт:
 ```bash
 helm install gantt issuechrono/gantt
 ```
 
-#### Configuration
+### Конфигурация
 
-You can customize the installation by creating a `values.yaml` file:
+Создайте файл `values.yaml` для настройки установки:
 
 ```yaml
 backend:
   env:
     - name: NODE_ENV
       value: production
-    # Add your GitLab configuration here
-
+    # Добавьте конфигурацию GitLab здесь
 frontend:
   env:
     - name: VITE_API_URL
       value: http://backend:3001
-
 ingress:
   enabled: true
   className: nginx
@@ -55,45 +107,44 @@ ingress:
           service: backend
 ```
 
-Then install with:
-```bash
-helm install gantt issuechrono/gantt -f values.yaml
-```
+## Разработка
 
-### Available Values
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `backend.replicaCount` | Number of backend replicas | `1` |
-| `backend.image.tag` | Backend image tag | `1.0.6` |
-| `frontend.replicaCount` | Number of frontend replicas | `1` |
-| `frontend.image.tag` | Frontend image tag | `1.0.6` |
-| `ingress.enabled` | Enable ingress | `true` |
-| `ingress.className` | Ingress class name | `nginx` |
-
-## Development
-
-1. Clone the repository:
+1. Клонирование репозитория:
 ```bash
 git clone https://github.com/VizzleTF/IssueChrono.git
 cd IssueChrono
 ```
 
-2. Install dependencies:
+2. Установка зависимостей:
 ```bash
 cd frontend && npm install
 cd ../backend && npm install
 ```
 
-3. Start development servers:
+3. Запуск серверов разработки:
 ```bash
 # Frontend
 cd frontend && npm run dev
-
 # Backend
 cd backend && npm run dev
 ```
 
-## License
+## Системные требования
+
+### Минимальные требования
+- Node.js 16+
+- NPM 7+
+- Docker 20+ (для контейнеризации)
+- Kubernetes 1.19+ (для развертывания через Helm)
+
+### Рекомендуемые требования
+- Node.js 18+
+- NPM 8+
+- Docker 23+
+- Kubernetes 1.24+
+- Минимум 2 ГБ RAM для development окружения
+- Минимум 4 ГБ RAM для production окружения
+
+## Лицензия
 
 MIT License
